@@ -149,15 +149,19 @@ namespace TagTool.Commands.Editing
                         strings.Add(str);
                         goto default;
                     }
-                default:
-                    //if (data != null && data.ToString().Contains("|"))
-                    if (fieldName.Split('.').Last().Contains("Flags"))
+                case Enum enumValue:
                     {
-                        string flaglist = data.ToString();
-                        flaglist = flaglist.Replace(" ", string.Empty);
-                        commands.Add($"SetField {fieldName} {flaglist}");
+                        TagEnumInfo enumInfo = TagEnum.GetInfo(enumValue.GetType(), cache.Version, cache.Platform);
+                        string value = data.ToString();
+
+                        if (enumInfo.IsFlags)
+                            value = string.IsNullOrWhiteSpace(value) ? "0" : value.Replace(" ", string.Empty);
+
+                        commands.Add($"SetField {fieldName} {value}");
+                        break;
                     }
-                    else if (fieldName.Contains(".TextureConstants[") && fieldName.EndsWith("].Bitmap"))
+                default:
+                    if (fieldName.Contains(".TextureConstants[") && fieldName.EndsWith("].Bitmap"))
                     	break;
                     else
                         commands.Add($"SetField {fieldName} {(FormatValue(data).Equals("\"\"") ? "null" : FormatValue(data))}");

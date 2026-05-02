@@ -650,7 +650,7 @@ namespace TagTool.Tags.Definitions
                 [Flags]
                 public enum UnitInventory : ushort
                 {
-                    None = 1 << 0,
+                    Unarmed = 1 << 0,
                     IsSingleWielding = 1 << 1,
                     IsDualWielding = 1 << 2,
                     HasSupportWeapon = 1 << 3
