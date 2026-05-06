@@ -34,8 +34,8 @@ namespace TagTool.Commands
             var assembly = Assembly.GetExecutingAssembly();
             Console.WriteLine($"TagTool [{assembly.GetName().Version} (Built {FileTimeUtil.GetLinkerTimestampUtc(assembly)} UTC)]");
             Console.WriteLine();
-            Console.WriteLine("Please report any bugs and/or feature requests:");
-            Console.WriteLine("https://github.com/MtnDewIt/TagTool-NET-Test/issues");
+            Console.WriteLine("This is an unofficial and unsupported build intended for extracting assets from miscellaneous builds.");
+            Console.WriteLine("If you encounter any bugs that's very unfortunate, please ignore them and do not message anyone about it.");
 
             AssemblyResolver.CheckMissingDependencies();
 
