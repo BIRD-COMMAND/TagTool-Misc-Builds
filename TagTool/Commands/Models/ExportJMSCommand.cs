@@ -6,6 +6,7 @@ using TagTool.Commands.Common;
 using TagTool.Common;
 using TagTool.Tags.Definitions;
 using TagTool.Geometry.Jms;
+using TagTool.Geometry.Export;
 using System.Numerics;
 
 namespace TagTool.Commands.Models
@@ -102,8 +103,21 @@ namespace TagTool.Commands.Models
                     RenderModel mode = Cache.Deserialize<RenderModel>(cacheStream, Definition.RenderModel);
                     var resource = Cache.ResourceCache.GetRenderGeometryApiResourceDefinition(mode.Geometry.Resource);
                     mode.Geometry.SetResourceBuffers(resource, true);
+
                     JmsModeExporter exporter = new JmsModeExporter(Cache, jms);
-                    exporter.Export(mode);
+
+                    string tagName = Definition.RenderModel.Name ?? Definition.RenderModel.Index.ToString("X8");
+                    ExportRenderModel dto = TryAdaptRenderModel(mode, Cache, tagName);
+                    if (dto != null)
+                    {
+                        Console.WriteLine("Done (new DTO path)!");
+                        exporter.Export(dto);
+                    }
+                    else
+                    {
+                        Console.Error.WriteLine("[ExportJMSCommand] Adapter failed; falling back to legacy path.");
+                        exporter.Export(mode);
+                    }
                 }
 
             }
@@ -185,6 +199,19 @@ namespace TagTool.Commands.Models
                 }
 
                 jms.Nodes.Add(newnode);
+            }
+        }
+
+        private static ExportRenderModel TryAdaptRenderModel(RenderModel mode, GameCache cache, string tagName)
+        {
+            try
+            {
+                return new RenderModelExportAdapter().AdaptRenderModel(mode, cache, tagName);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[RenderModelExportAdapter] {ex.Message}; falling back to legacy path.");
+                return null;
             }
         }
     }

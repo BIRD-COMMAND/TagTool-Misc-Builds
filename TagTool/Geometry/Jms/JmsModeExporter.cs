@@ -8,6 +8,7 @@ using TagTool.Common;
 using System.Numerics;
 using Assimp;
 using TagTool.Pathfinding;
+using TagTool.Geometry.Export;
 
 namespace TagTool.Geometry.Jms
 {
@@ -21,6 +22,127 @@ namespace TagTool.Geometry.Jms
             Cache = cacheContext;
             Jms = jms;
         }
+
+        // -----------------------------------------------------------------------
+        // New path: ExportRenderModel DTO → JMS
+        // Nodes are already in Jms.Nodes (built by ExportJMSCommand).
+        // Adds: markers, materials, vertices, triangles.
+        // -----------------------------------------------------------------------
+
+        public void Export(ExportRenderModel dto)
+        {
+            int markerCount = 0;
+            int meshCount   = 0;
+            int vertexCount = 0;
+            int triCount    = 0;
+
+            // Markers
+            foreach (var m in dto.Markers)
+            {
+                markerCount++;
+                Jms.Markers.Add(new JmsFormat.JmsMarker
+                {
+                    Name        = m.GroupName,
+                    NodeIndex   = m.NodeIndex,
+                    Rotation    = m.Rotation,
+                    Translation = new RealVector3d(m.Translation.X, m.Translation.Y, m.Translation.Z) * 100.0f,
+                    Radius      = m.Scale <= 0.0f ? 1.0f : m.Scale,
+                });
+            }
+
+            // Materials: ShaderPath = JMS Name, LightmapPath = cell label "(slot) perm region".
+            // JMS export uses donor blam-tags scale factor 100.0 for positions.
+            for (int i = 0; i < dto.Materials.Count; i++)
+            {
+                var mat  = dto.Materials[i];
+                int slot = Jms.Materials.Count + 1;
+                Jms.Materials.Add(new JmsFormat.JmsMaterial
+                {
+                    Name         = mat.ShaderPath,
+                    MaterialName = $"({slot}) {mat.LightmapPath}",
+                });
+            }
+
+            // Geometry: region → permutation → mesh (one mesh per part)
+            // Vertices are shared within each ExportMesh — preserves the tag's smooth/hard
+            // edge encoding so importers get correct shading without manual fixups.
+            foreach (var region in dto.Regions)
+            {
+                foreach (var perm in region.Permutations)
+                {
+                    foreach (var mesh in perm.Meshes)
+                    {
+                        meshCount++;
+                        int vertBase = Jms.Vertices.Count;
+
+                        foreach (var v in mesh.Vertices)
+                        {
+                            Jms.Vertices.Add(ToJmsVertex(v));
+                            vertexCount++;
+                        }
+
+                        for (int t = 0; t + 2 < mesh.Indices.Count; t += 3)
+                        {
+                            Jms.Triangles.Add(new JmsFormat.JmsTriangle
+                            {
+                                MaterialIndex = mesh.MaterialIndex,
+                                VertexIndices = new List<int>
+                                {
+                                    vertBase + mesh.Indices[t],
+                                    vertBase + mesh.Indices[t + 1],
+                                    vertBase + mesh.Indices[t + 2],
+                                },
+                            });
+                            triCount++;
+                        }
+                    }
+                }
+            }
+
+            Console.WriteLine($"  Tag:       {dto.TagPath}");
+            Console.WriteLine($"  Nodes:     {Jms.Nodes.Count}");
+            Console.WriteLine($"  Materials: {dto.Materials.Count}");
+            Console.WriteLine($"  Regions:   {dto.Regions.Count}");
+            Console.WriteLine($"  Meshes:    {meshCount}");
+            Console.WriteLine($"  Vertices:  {vertexCount}");
+            Console.WriteLine($"  Triangles: {triCount}");
+            Console.WriteLine($"  Markers:   {markerCount}");
+            Console.WriteLine($"  Instances: {dto.InstancePlacements.Count} (geometry not extracted)");
+        }
+
+        // Converts ExportVertex to JmsVertex.
+        // JMS export uses donor blam-tags scale factor 100.0 for positions.
+        // V coordinate is flipped (1 - v) to match Halo bitmap convention.
+        private static JmsFormat.JmsVertex ToJmsVertex(ExportVertex v)
+        {
+            var jv = new JmsFormat.JmsVertex
+            {
+                Position = v.Position * 100.0f,
+                Normal   = new RealVector3d(v.Normal.I, v.Normal.J, v.Normal.K),
+                NodeSets = new List<JmsFormat.JmsVertex.NodeSet>(),
+                UvSets   = new List<JmsFormat.JmsVertex.UvSet>
+                {
+                    new JmsFormat.JmsVertex.UvSet
+                    {
+                        TextureCoordinates = new RealPoint2d(v.TexCoords[0].I, 1.0f - v.TexCoords[0].J),
+                    }
+                },
+            };
+            for (int i = 0; i < 4; i++)
+            {
+                if (v.BoneWeights[i] > 0.0f)
+                    jv.NodeSets.Add(new JmsFormat.JmsVertex.NodeSet
+                    {
+                        NodeIndex  = v.BoneIndices[i],
+                        NodeWeight = v.BoneWeights[i],
+                    });
+            }
+            return jv;
+        }
+
+        // -----------------------------------------------------------------------
+        // Legacy path: RenderModel → JMS directly
+        // -----------------------------------------------------------------------
 
         public void Export(RenderModel mode)
         {

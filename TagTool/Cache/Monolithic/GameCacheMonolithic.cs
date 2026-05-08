@@ -52,7 +52,7 @@ namespace TagTool.Cache.Monolithic
                     platform = CachePlatform.Original;
                     break;
                 case "2ccbe86e-fec7-478e-b346-a413be9f0d02":
-                    version = CacheVersion.Halo4220811;
+                    version = CacheVersion.HaloReach11883;
                     platform = CachePlatform.Original;
                     break;
                 case "04c0ba10-efd0-4bd0-8277-aaaec892cd6d":
