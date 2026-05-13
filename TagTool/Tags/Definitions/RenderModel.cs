@@ -4,11 +4,13 @@ using TagTool.Geometry;
 using System;
 using System.Collections.Generic;
 using static TagTool.Tags.TagFieldFlags;
+using Gen4Defs = TagTool.Tags.Definitions.Gen4;
 
 namespace TagTool.Tags.Definitions
 {
     [TagStructure(Name = "render_model", Tag = "mode", Size = 0x1B4, MinVersion = CacheVersion.Halo3Beta, MaxVersion = CacheVersion.Halo3Beta)]
     [TagStructure(Name = "render_model", Tag = "mode", Size = 0x1CC, MinVersion = CacheVersion.Halo3Retail, MaxVersion = CacheVersion.HaloOnline700123)]
+    [TagStructure(Name = "render_model", Tag = "mode", Size = 0x350, MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911, Platform = CachePlatform.Original)]
     [TagStructure(Name = "render_model", Tag = "mode", Size = 0x258, MinVersion = CacheVersion.HaloReach, Platform = CachePlatform.Original)]
     [TagStructure(Name = "render_model", Tag = "mode", Size = 0x264, MinVersion = CacheVersion.HaloReach, Platform = CachePlatform.MCC)]
     public class RenderModel : TagStructure
@@ -18,10 +20,24 @@ namespace TagTool.Tags.Definitions
         public short Version;
         public int Checksum;
 
+        [TagField(MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911)]
+        public List<CharacterLightingLod> CharacterLightingLods;
+
+        [TagField(MaxVersion = CacheVersion.Halo4220811)]
         public List<Region> Regions;
 
-        [TagField(MinVersion = CacheVersion.Halo3Beta)]
+        [TagField(MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911)]
+        public List<Gen4Defs.RenderModel.RenderModelRegionBlock> RegionsHalo4280911;
+
+        [TagField(MinVersion = CacheVersion.Halo3Beta, MaxVersion = CacheVersion.Halo4220811)]
         public int Unknown18;
+
+        [TagField(MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911)]
+        public sbyte L1SectionGroupIndex;
+        [TagField(MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911)]
+        public sbyte L2SectionGroupIndex;
+        [TagField(MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911, Length = 2, Flags = Padding)]
+        public byte[] Halo4280911Padding0;
 
         [TagField(MinVersion = CacheVersion.Halo3Beta)]
         public int InstanceStartingMeshIndex;
@@ -30,43 +46,58 @@ namespace TagTool.Tags.Definitions
         public List<InstancePlacement> InstancePlacements;
 
         public int NodeListChecksum;
+        [TagField(MaxVersion = CacheVersion.Halo4220811)]
         public List<Node> Nodes;
 
+        [TagField(MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911)]
+        public List<Gen4Defs.RenderModel.RenderModelNodeBlock> NodesHalo4280911;
+
+        [TagField(MaxVersion = CacheVersion.Halo4220811)]
         public List<MarkerGroup> MarkerGroups;
+
+        [TagField(MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911)]
+        public List<Gen4Defs.RenderModel.RenderModelMarkerGroupBlock> MarkerGroupsHalo4280911;
         public List<RenderMaterial> Materials;
 
-        [TagField(Flags = Padding, Length = 12)]
+        [TagField(Flags = Padding, Length = 12, MaxVersion = CacheVersion.Halo4220811)]
         public byte[] Unused; // "Errors" block
+
+        [TagField(MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911)]
+        public List<Gen4Defs.RenderModel.GlobalErrorReportCategoriesBlock> ErrorsHalo4280911;
 
         public float DontDrawOverCameraCosineAngle;
 
-        [TagField(MinVersion = CacheVersion.Halo3Beta)]
+        [TagField(MinVersion = CacheVersion.Halo3Beta, MaxVersion = CacheVersion.Halo4220811)]
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
         public RenderGeometry Geometry = new RenderGeometry();
+
+        [TagField(MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911)]
+        public RenderGeometryHalo4280911 GeometryHalo4280911;
 
         [TagField(MinVersion = CacheVersion.HaloReach)]
         public List<short> NodeMapMapping;
-        [TagField(MinVersion = CacheVersion.Halo3Beta)]
+        [TagField(MinVersion = CacheVersion.Halo3Beta, MaxVersion = CacheVersion.Halo4280911)]
         public List<SkygenLight> LightgenLights; // first index is sun
 
-        [TagField(Length = 16, MinVersion = CacheVersion.Halo3Beta)]
+        [TagField(Length = 16, MinVersion = CacheVersion.Halo3Beta, MaxVersion = CacheVersion.Halo4280911)]
         public float[] SHRed = new float[SphericalHarmonics.Order3Count];
-        [TagField(Length = 16, MinVersion = CacheVersion.Halo3Beta)]
+        [TagField(Length = 16, MinVersion = CacheVersion.Halo3Beta, MaxVersion = CacheVersion.Halo4280911)]
         public float[] SHGreen = new float[SphericalHarmonics.Order3Count];
-        [TagField(Length = 16, MinVersion = CacheVersion.Halo3Beta)]
+        [TagField(Length = 16, MinVersion = CacheVersion.Halo3Beta, MaxVersion = CacheVersion.Halo4280911)]
         public float[] SHBlue = new float[SphericalHarmonics.Order3Count];
-        [TagField(Length = 16, MinVersion = CacheVersion.HaloReach)]
+        [TagField(Length = 16, MinVersion = CacheVersion.HaloReach, MaxVersion = CacheVersion.Halo4280911)]
         public float[] VmfLightProbe;
-        [TagField(MinVersion = CacheVersion.HaloReach)]
+        [TagField(MinVersion = CacheVersion.HaloReach, MaxVersion = CacheVersion.Halo4280911)]
         public RealVector3d AnalyticalLightDirection;
-        [TagField(MinVersion = CacheVersion.HaloReach)]
+        [TagField(MinVersion = CacheVersion.HaloReach, MaxVersion = CacheVersion.Halo4280911)]
         public RealRgbColor AnalyticalLightColor;
-        [TagField(MinVersion = CacheVersion.HaloReach)]
+        [TagField(MinVersion = CacheVersion.HaloReach, MaxVersion = CacheVersion.Halo4280911)]
         public float DirectSunLightMultiplier;
-        [TagField(MinVersion = CacheVersion.HaloReach)]
+        [TagField(MinVersion = CacheVersion.HaloReach, MaxVersion = CacheVersion.Halo4280911)]
         public float SkyDomeAndAllBounceLightMultiplier;
-        [TagField(MinVersion = CacheVersion.HaloReach)]
+        [TagField(MinVersion = CacheVersion.HaloReach, MaxVersion = CacheVersion.Halo4280911)]
         public float Sun1stBounceScaler;
-        [TagField(MinVersion = CacheVersion.HaloReach)]
+        [TagField(MinVersion = CacheVersion.HaloReach, MaxVersion = CacheVersion.Halo4280911)]
         public float SkyLight1stBounceScaler;
 
 
@@ -75,6 +106,23 @@ namespace TagTool.Tags.Definitions
 
         [TagField(MinVersion = CacheVersion.Halo3Retail)]
         public List<RuntimeNodeOrientation> RuntimeNodeOrientations;
+
+        [TagField(MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911)]
+        public List<Gen4Defs.RenderModel.RenderModelBoneGroupBlock> BoneGroupsHalo4280911;
+
+        [TagField(MinVersion = CacheVersion.Halo4E3, ValidTags = new[] { "smet" })]
+        public CachedTag StructureMetaData;
+        [TagField(MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911, ValidTags = new[] { "Lbsp" })]
+        public CachedTag LightmapBspDataReference;
+        [TagField(MinVersion = CacheVersion.Halo4E3, ValidTags = new[] { "rmla" })]
+        public CachedTag ForgeLightmapAtlases;
+
+        [TagStructure(Size = 0x94)]
+        public class CharacterLightingLod : TagStructure
+        {
+            [TagField(Flags = Padding, Length = 0x94)]
+            public byte[] Data;
+        }
 
         [Flags]
         public enum FlagsValue : ushort
@@ -396,6 +444,74 @@ namespace TagTool.Tags.Definitions
             public RealQuaternion Rotation;
             public RealPoint3d Translation;
             public float Scale;
+        }
+
+        [TagStructure(Size = 0x16C)]
+        public class RenderGeometryHalo4280911 : TagStructure
+        {
+            public RenderGeometryFlagsValue RuntimeFlags;
+
+            // Sep27 monolithic runtime layout includes an inline virtual-geometry struct here.
+            // Keep it as raw bytes for now until that nested struct is fully named/mapped.
+            [TagField(Length = 0xD0, Flags = Padding)]
+            public byte[] VirtualGeometry;
+
+            public List<GlobalMeshBlockSep27> Meshes;
+            public List<Gen4Defs.RenderModel.GlobalRenderGeometryStruct.PcameshIndexBlock> PcaMeshIndices;
+            public List<Gen4Defs.RenderModel.GlobalRenderGeometryStruct.CompressionInfoBlock> CompressionInfo;
+            public List<Gen4Defs.RenderModel.GlobalRenderGeometryStruct.SortingPositionBlock> PartSortingPosition;
+            public List<Gen4Defs.RenderModel.GlobalRenderGeometryStruct.UserDataBlock> UserData;
+            public List<Gen4Defs.RenderModel.GlobalRenderGeometryStruct.PerMeshRawDataBlock> PerMeshTemporary;
+
+            [TagField(Length = 0xC, Flags = Padding)]
+            public byte[] Padding0;
+
+            public List<Gen4Defs.RenderModel.GlobalRenderGeometryStruct.PerMeshNodeMapBlock> PerMeshNodeMap;
+            public List<Gen4Defs.RenderModel.GlobalRenderGeometryStruct.PerMeshSubpartVisibilityBlock> PerMeshSubpartVisibility;
+            public List<Gen4Defs.RenderModel.GlobalRenderGeometryStruct.PerMeshPrtDataBlock> PerMeshPrtData;
+            public List<Gen4Defs.RenderModel.GlobalRenderGeometryStruct.PerInstanceLightmapTexcoordsBlock> PerInstanceLightmapTexcoords;
+            public TagResourceReference ApiResource;
+            public List<Gen4Defs.RenderModel.GlobalRenderGeometryStruct.ShapenameBlock> Shapenames;
+
+            [Flags]
+            public enum RenderGeometryFlagsValue : uint
+            {
+                Processed = 1 << 0,
+                Available = 1 << 1,
+                HasValidBudgets = 1 << 2,
+                ManualResourceCreation = 1 << 3,
+                KeepRawGeometry = 1 << 4,
+                DontUseCompressedVertexPositions = 1 << 5,
+                PcaAnimationTableSorted = 1 << 6,
+                NeedsNoLightmapUvs = 1 << 7,
+                AlwaysNeedsLightmapUvs = 1 << 8
+            }
+
+            // Sep27 global_mesh_block is 0x6C (lacks CloneIndex + CumulativePartCount vs release 0x70).
+            [TagStructure(Size = 0x6C)]
+            public class GlobalMeshBlockSep27 : TagStructure
+            {
+                public List<Gen4Defs.RenderModel.GlobalRenderGeometryStruct.GlobalMeshBlock.PartBlock> Parts;
+                public List<Gen4Defs.RenderModel.GlobalRenderGeometryStruct.GlobalMeshBlock.SubpartBlock> Subparts;
+                [TagField(Length = 9)]
+                public Gen4Defs.RenderModel.GlobalRenderGeometryStruct.GlobalMeshBlock.VertexBufferIndicesWordArray[] VertexBufferIndices;
+                public short IndexBufferIndex;
+                public short IndexBufferTessellation;
+                public Gen4Defs.RenderModel.GlobalRenderGeometryStruct.GlobalMeshBlock.MeshFlags MeshFlags1;
+                public sbyte RigidNodeIndex;
+                public Gen4Defs.RenderModel.GlobalRenderGeometryStruct.GlobalMeshBlock.MeshVertexType VertexType;
+                public Gen4Defs.RenderModel.GlobalRenderGeometryStruct.GlobalMeshBlock.MeshTransferVertexType PrtVertexType;
+                public Gen4Defs.RenderModel.GlobalRenderGeometryStruct.GlobalMeshBlock.MeshLightingPolicyType LightingPolicy;
+                public Gen4Defs.RenderModel.GlobalRenderGeometryStruct.GlobalMeshBlock.MeshIndexBufferType IndexBufferType;
+                [TagField(Length = 0x1, Flags = Padding)]
+                public byte[] MeshPadding;
+                public short PcaMeshIndex;
+                public List<Gen4Defs.RenderModel.GlobalRenderGeometryStruct.GlobalMeshBlock.GlobalInstanceBucketBlock> InstanceBuckets;
+                public List<Gen4Defs.RenderModel.GlobalRenderGeometryStruct.GlobalMeshBlock.IndicesWordBlock> WaterIndicesStart;
+                public float RuntimeBoundingRadius;
+                public RealPoint3d RuntimeBoundingOffset;
+                public List<Gen4Defs.RenderModel.GlobalRenderGeometryStruct.GlobalMeshBlock.VertexkeyBlock> VertexKeys;
+            }
         }
     }
 }

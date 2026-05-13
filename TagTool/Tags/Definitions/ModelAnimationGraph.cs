@@ -10,6 +10,7 @@ namespace TagTool.Tags.Definitions
 {
     [TagStructure(Name = "model_animation_graph", Tag = "jmad", Size = 0x104, MaxVersion = CacheVersion.HaloOnline700123)]
     [TagStructure(Name = "model_animation_graph", Tag = "jmad", Size = 0x1B8, MinVersion = CacheVersion.HaloReach)]
+    [TagStructure(Name = "model_animation_graph", Tag = "jmad", Size = 0x1B8, MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911)]
     public class ModelAnimationGraph : TagStructure
 	{
         [TagField(ValidTags = new[] { "jmad" })]

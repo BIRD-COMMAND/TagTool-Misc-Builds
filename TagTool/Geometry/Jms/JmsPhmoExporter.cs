@@ -12,6 +12,7 @@ using System.Threading.Tasks.Sources;
 using TagTool.Commands.Common;
 using static TagTool.Tags.Definitions.PhysicsModel;
 using TagTool.Common.Logging;
+using TagTool.Geometry.Export;
 
 namespace TagTool.Geometry.Jms
 {
@@ -28,6 +29,151 @@ namespace TagTool.Geometry.Jms
             Cache = cacheContext;
             Jms = jms;
         }
+
+        // -----------------------------------------------------------------------
+        // New path: ExportPhysicsModel DTO → JMS
+        // Scale ×100 is applied here at emit time (not in the adapter).
+        // Capsule anchor/height/rotation are computed here from Bottom/Top/Radius.
+        // -----------------------------------------------------------------------
+
+        public void Export(ExportPhysicsModel dto)
+        {
+            // Materials
+            foreach (var mat in dto.Materials)
+                Jms.Materials.Add(new JmsFormat.JmsMaterial
+                {
+                    Name         = mat.ShaderPath,
+                    MaterialName = mat.LightmapPath,
+                });
+
+            // Boxes: HalfExtents × 2 × 100, rotation already computed by adapter.
+            foreach (var box in dto.Boxes)
+                Jms.Boxes.Add(new JmsFormat.JmsBox
+                {
+                    Name        = box.Name,
+                    Parent      = box.NodeIndex,
+                    Material    = box.MaterialIndex,
+                    Rotation    = box.Rotation,
+                    Translation = new RealVector3d(box.Translation.X, box.Translation.Y, box.Translation.Z) * 100.0f,
+                    Width       = box.HalfExtents.I * 2.0f * 100.0f,
+                    Length      = box.HalfExtents.J * 2.0f * 100.0f,
+                    Height      = box.HalfExtents.K * 2.0f * 100.0f,
+                });
+
+            // Spheres: translation and radius scaled ×100.
+            foreach (var sphere in dto.Spheres)
+                Jms.Spheres.Add(new JmsFormat.JmsSphere
+                {
+                    Name        = sphere.Name,
+                    Parent      = sphere.NodeIndex,
+                    Material    = sphere.MaterialIndex,
+                    Rotation    = new RealQuaternion(),
+                    Translation = new RealVector3d(sphere.Translation.X, sphere.Translation.Y, sphere.Translation.Z) * 100.0f,
+                    Radius      = sphere.Radius * 100.0f,
+                });
+
+            // Capsules/pills: compute anchor, height, orientation from Bottom/Top/Radius.
+            // Matches existing JmsPhmoExporter pill logic exactly.
+            foreach (var pill in dto.Capsules)
+            {
+                var pillBottom = new Vector3(pill.Bottom.X, pill.Bottom.Y, pill.Bottom.Z) * 100.0f;
+                var pillTop    = new Vector3(pill.Top.X,    pill.Top.Y,    pill.Top.Z)    * 100.0f;
+                float radius   = pill.Radius * 100.0f;
+
+                // Anchor = bottom endpoint displaced toward bottom by one radius.
+                Vector3 inverseDir = Vector3.Normalize(pillBottom - pillTop) * radius;
+                Vector3 anchor     = pillBottom + inverseDir;
+                float   height     = Vector3.Distance(pillBottom, pillTop);
+
+                Quaternion rot = QuaternionFromVector(pillTop - pillBottom);
+
+                Jms.Capsules.Add(new JmsFormat.JmsCapsule
+                {
+                    Name        = pill.Name,
+                    Parent      = pill.NodeIndex,
+                    Material    = pill.MaterialIndex,
+                    Rotation    = new RealQuaternion(rot.X, rot.Y, rot.Z, rot.W),
+                    Translation = new RealVector3d(anchor.X, anchor.Y, anchor.Z),
+                    Height      = height,
+                    Radius      = radius,
+                });
+            }
+
+            // Polyhedra: vertices scaled ×100. Rotation/translation are identity.
+            foreach (var poly in dto.Polyhedra)
+            {
+                var convex = new JmsFormat.JmsConvexShape
+                {
+                    Name             = poly.Name,
+                    Parent           = poly.NodeIndex,
+                    Material         = poly.MaterialIndex,
+                    Rotation         = new RealQuaternion(),
+                    Translation      = new RealVector3d(),
+                    ShapeVertexCount = poly.Vertices.Count,
+                    ShapeVertices    = new List<RealPoint3d>(poly.Vertices.Count),
+                };
+                foreach (var v in poly.Vertices)
+                    convex.ShapeVertices.Add(v * 100.0f);
+                Jms.ConvexShapes.Add(convex);
+            }
+
+            // Ragdolls: pivot scaled ×100; rotation already negated by adapter.
+            foreach (var r in dto.Ragdolls)
+            {
+                Jms.Ragdolls.Add(new JmsFormat.JmsRagdoll
+                {
+                    Name                         = r.Name,
+                    AttachedIndex                = r.NodeA,
+                    ReferencedIndex              = r.NodeB,
+                    AttachedTransformOrientation  = r.RotationInA,
+                    AttachedTransformPosition     = new RealVector3d(r.PivotInA.X, r.PivotInA.Y, r.PivotInA.Z) * 100.0f,
+                    ReferenceTransformOrientation = r.RotationInB,
+                    ReferenceTransformPosition    = new RealVector3d(r.PivotInB.X, r.PivotInB.Y, r.PivotInB.Z) * 100.0f,
+                    MinTwist                     = r.MinTwist,
+                    MaxTwist                     = r.MaxTwist,
+                    MinCone                      = r.MinCone,
+                    MaxCone                      = r.MaxCone,
+                    MinPlane                     = r.MinPlane,
+                    MaxPlane                     = r.MaxPlane,
+                    FrictionLimit                = r.FrictionLimit,
+                });
+            }
+
+            // Hinges (non-limited and limited combined, in adapter order).
+            foreach (var h in dto.Hinges)
+            {
+                Jms.Hinges.Add(new JmsFormat.JmsHinge
+                {
+                    Name                     = h.Name,
+                    BodyAIndex               = h.NodeA,
+                    BodyBIndex               = h.NodeB,
+                    BodyATransformOrientation = h.RotationInA,
+                    BodyATransformPosition    = new RealVector3d(h.PivotInA.X, h.PivotInA.Y, h.PivotInA.Z) * 100.0f,
+                    BodyBTransformOrientation = h.RotationInB,
+                    BodyBTransformPosition    = new RealVector3d(h.PivotInB.X, h.PivotInB.Y, h.PivotInB.Z) * 100.0f,
+                    IsLimited                = h.IsLimited,
+                    FrictionLimit            = h.FrictionLimit,
+                    MinAngle                 = h.MinAngle,
+                    MaxAngle                 = h.MaxAngle,
+                });
+            }
+
+            Console.WriteLine($"  Tag:        {dto.TagPath}");
+            Console.WriteLine($"  Nodes:      {dto.Nodes.Count}");
+            Console.WriteLine($"  Materials:  {dto.Materials.Count}");
+            Console.WriteLine($"  RigidBodies:{dto.RigidBodies.Count}");
+            Console.WriteLine($"  Spheres:    {dto.Spheres.Count}");
+            Console.WriteLine($"  Boxes:      {dto.Boxes.Count}");
+            Console.WriteLine($"  Capsules:   {dto.Capsules.Count}");
+            Console.WriteLine($"  Polyhedra:  {dto.Polyhedra.Count}");
+            Console.WriteLine($"  Ragdolls:   {dto.Ragdolls.Count}");
+            Console.WriteLine($"  Hinges:     {dto.Hinges.Count}");
+            Console.WriteLine($"  Scale:      x100.0 applied at emit time");
+        }
+
+        // -----------------------------------------------------------------------
+        // Legacy path: PhysicsModel → JMS directly
+        // -----------------------------------------------------------------------
 
         public void Export(PhysicsModel phmo)
         {

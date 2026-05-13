@@ -5,6 +5,7 @@ using TagTool.Cache;
 using TagTool.Common;
 using TagTool.Havok;
 using static TagTool.Tags.TagFieldFlags;
+using Gen4Defs = TagTool.Tags.Definitions.Gen4;
 
 namespace TagTool.Tags.Definitions
 {
@@ -14,8 +15,11 @@ namespace TagTool.Tags.Definitions
 	{
         public int CollisionModelChecksum;
 
-        [TagField(Flags = Padding, Length = 0xC)]
+        [TagField(Flags = Padding, Length = 0xC, MaxVersion = CacheVersion.HaloOnline700123)]
         public byte[] UnusedErrorsBlock = new byte[0xC];
+
+        [TagField(MinVersion = CacheVersion.HaloReach)]
+        public List<Gen4Defs.CollisionModel.GlobalErrorReportCategoriesBlock> Errors;
 
         public CollisionModelFlags Flags;
 

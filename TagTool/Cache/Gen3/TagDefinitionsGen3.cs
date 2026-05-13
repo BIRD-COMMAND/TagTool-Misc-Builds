@@ -5,6 +5,7 @@ using TagTool.Cache.Resources;
 using TagTool.Common;
 using TagTool.Tags;
 using TagTool.Tags.Definitions;
+using Gen4Defs = TagTool.Tags.Definitions.Gen4;
 
 namespace TagTool.Cache.Gen3
 {
@@ -154,7 +155,10 @@ namespace TagTool.Cache.Gen3
             { new TagGroupGen3("lswd", "leaf_system"), typeof(LeafSystem) },
             { new TagGroupGen3("ltvl", "light_volume_system"), typeof(LightVolumeSystem) },
             { new TagGroupGen3("mach", "devi", "obje", "device_machine"), typeof(DeviceMachine) },
+            // Halo 4 pre-release tags-build material groups.
+            { new TagGroupGen3("mat ", "material"), typeof(Gen4Defs.Material) },
             { new TagGroupGen3("matg", "globals"), typeof(Globals) },
+            { new TagGroupGen3("mats", "material_shader"), typeof(Gen4Defs.MaterialShader) },
             { new TagGroupGen3("mdl3", "gui_model_widget_definition"), typeof(GuiModelWidgetDefinition) },
             { new TagGroupGen3("mdlg", "ai_mission_dialogue"), typeof(AiMissionDialogue) },
             { new TagGroupGen3("metr", "meter"), null /*typeof(Meter)*/ },
@@ -167,6 +171,7 @@ namespace TagTool.Cache.Gen3
             { new TagGroupGen3("motl", "multiplayer_object_type_list"), null /*typeof(MultiplayerObjectTypeList)*/  },
             { new TagGroupGen3("mply", "multiplayer_scenario_description"), null /*typeof(MultiplayerScenarioDescription)*/ },
             { new TagGroupGen3("msit", "megalo_string_id_table"), null /*typeof(MegaloStringIdTable)*/  },
+            { new TagGroupGen3("mtsb", "material_shader_bank"), typeof(Gen4Defs.MaterialShaderBank) },
             { new TagGroupGen3("mulg", "multiplayer_globals"), typeof(MultiplayerGlobals) },
             { new TagGroupGen3("muxg", "mux_generator"), null /*typeof(MuxGenerator)*/  },
             { new TagGroupGen3("nclt", "new_cinematic_lighting"), typeof(NewCinematicLighting) },

@@ -50,10 +50,8 @@ namespace TagTool.Geometry.Export
         public RealPoint3d    Translation;
         public RealVector3d   HalfExtents;
 
-        // Rotation derived from the Havok 3×3 row-vector basis stored in PhysicsModel.Box.
-        // TODO Phase3: port donor jms.rs rotation_from_basis() to extract this quaternion.
-        //              Input is PhysicsModel.Box.RotationI/J/K as row vectors.
-        //              Current adapter leaves this as identity until Phase 3.
+        // Rotation extracted from Havok 3×3 row-vector basis (RotationI/J/K) by the adapter.
+        // Computed via Matrix4x4(rows=RotationI/J/K) + Quaternion.CreateFromRotationMatrix.
         public RealQuaternion Rotation;
     }
 
@@ -80,17 +78,32 @@ namespace TagTool.Geometry.Export
         public int    NodeA;
         public int    NodeB;
 
-        // Pivot and rotation extracted from Havok constraint frame data.
-        // TODO Phase3: port donor jms.rs constraint_frame() + rotation_from_basis() to populate
-        //              PivotInA/B and RotationInA/B from the raw Havok row-vector basis fields.
+        // Pivot and rotation extracted from Havok constraint frame (AForward/ALeft/AUp/APosition).
+        // Adapter builds quaternion from matrix rows, negates for ragdolls (TagTool convention).
         public RealPoint3d    PivotInA;
         public RealPoint3d    PivotInB;
         public RealQuaternion RotationInA;
         public RealQuaternion RotationInB;
     }
 
-    public class ExportPhysRagdoll : ExportPhysConstraint { }
-    public class ExportPhysHinge   : ExportPhysConstraint { }
+    public class ExportPhysRagdoll : ExportPhysConstraint
+    {
+        public float MinTwist;
+        public float MaxTwist;
+        public float MinCone;
+        public float MaxCone;
+        public float MinPlane;
+        public float MaxPlane;
+        public float FrictionLimit;
+    }
+
+    public class ExportPhysHinge : ExportPhysConstraint
+    {
+        public int   IsLimited;    // 0 = non-limited, 1 = limited
+        public float MinAngle;
+        public float MaxAngle;
+        public float FrictionLimit;
+    }
 
     /// <summary>
     /// Adapts a PhysicsModel tag into an ExportPhysicsModel DTO.

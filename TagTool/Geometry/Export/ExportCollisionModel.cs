@@ -19,6 +19,15 @@ namespace TagTool.Geometry.Export
         // when exporting with a matching render model skeleton.
         public List<ExportNode>            Nodes     = new List<ExportNode>();
         public List<ExportCollisionRegion> Regions   = new List<ExportCollisionRegion>();
+
+        // Winding-correction diagnostics filled by CollisionModelExportAdapter.
+        // WindingTotal = WindingKept + WindingFlipped + WindingDegenerate.
+        public int WindingTotal;        // surfaces reaching the winding check (ring >= 3, first 3 verts valid)
+        public int WindingKept;         // dot >= 0, no flip needed (includes MissingPlane surfaces)
+        public int WindingFlipped;      // dot < 0, ring reversed to match plane normal
+        public int WindingDegenerate;   // zero-area first triangle, surface skipped
+        public int WindingMalformed;    // ring < 3 or vertex index OOB, surface skipped (not in Total)
+        public int WindingMissingPlane; // plane index OOB, treated as Kept (subset of Kept)
     }
 
     public class ExportCollisionRegion

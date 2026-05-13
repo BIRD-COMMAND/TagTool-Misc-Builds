@@ -1,4 +1,5 @@
-﻿using TagTool.Cache;
+using TagTool.Cache;
+using TagTool.Commands.Gen4.Models;
 using TagTool.Tags.Definitions;
 
 namespace TagTool.Commands.Models
@@ -23,6 +24,8 @@ namespace TagTool.Commands.Models
             context.AddCommand(new ExtractModelCommand(cache, tag, model));
             context.AddCommand(new ExtractBitmapsCommand(cache, tag, model));
             context.AddCommand(new ExportJMSCommand(cache, model));
+            if (cache.Version == CacheVersion.Halo4280911)
+                context.AddCommand(new DiagnoseSep27RenderModelCommand(cache, model));
             context.AddCommand(new UpdateModelRegionsCommand(cache, model, tag));
             context.AddCommand(new UpdateModelNodesCommand(cache, model, tag));
         }

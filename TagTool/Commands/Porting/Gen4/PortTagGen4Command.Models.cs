@@ -24,63 +24,267 @@ namespace TagTool.Commands.Porting.Gen4
 
             //convert regions
             result.Regions = new List<RenderModel.Region>();
-            foreach(var reg in gen4RenderModel.Regions)
+            if (gen4RenderModel.Regions != null)
             {
-                RenderModel.Region newRegion = new RenderModel.Region
+                foreach(var reg in gen4RenderModel.Regions)
                 {
-                    Name = reg.Name,
-                    Permutations = new List<RenderModel.Region.Permutation>()
-                };
-                foreach(var perm in reg.Permutations)
-                {
-                    newRegion.Permutations.Add(new RenderModel.Region.Permutation
+                    RenderModel.Region newRegion = new RenderModel.Region
                     {
-                        Name = perm.Name,
-                        MeshCount = (ushort)perm.MeshCount,
-                        MeshIndex = perm.MeshIndex
-                    });
+                        Name = reg.Name,
+                        Permutations = new List<RenderModel.Region.Permutation>()
+                    };
+                    if (reg.Permutations != null)
+                    {
+                        foreach(var perm in reg.Permutations)
+                        {
+                            newRegion.Permutations.Add(new RenderModel.Region.Permutation
+                            {
+                                Name = perm.Name,
+                                MeshCount = (ushort)perm.MeshCount,
+                                MeshIndex = perm.MeshIndex
+                            });
+                        }
+                    }
+                    result.Regions.Add(newRegion);
                 }
-                result.Regions.Add(newRegion);
             }
 
             //convert materials
             result.Materials = new List<RenderMaterial>();
-            foreach(var mat in gen4RenderModel.Materials)
+            if (gen4RenderModel.Materials != null)
             {
-                result.Materials.Add(new RenderMaterial
+                foreach(var mat in gen4RenderModel.Materials)
                 {
-                    RenderMethod = mat.RenderMethod
-                });
+                    result.Materials.Add(new RenderMaterial
+                    {
+                        RenderMethod = mat.RenderMethod
+                    });
+                }
             }
 
             //convert markers
             result.MarkerGroups = new List<RenderModel.MarkerGroup>();
-            foreach(var mark in gen4RenderModel.MarkerGroups)
+            if (gen4RenderModel.MarkerGroups != null)
             {
-                var newMark = new RenderModel.MarkerGroup
+                foreach(var mark in gen4RenderModel.MarkerGroups)
                 {
-                    Name = mark.Name,
-                    Markers = new List<RenderModel.MarkerGroup.Marker>()
-                };
-                foreach(var marker in mark.Markers)
-                {
-                    newMark.Markers.Add(new RenderModel.MarkerGroup.Marker
+                    var newMark = new RenderModel.MarkerGroup
                     {
-                        NodeIndex = (sbyte)marker.NodeIndex,
-                        RegionIndex = marker.RegionIndex,
-                        PermutationIndex = marker.PermutationIndex,
-                        Translation = marker.Translation,
-                        Rotation = marker.Rotation,
-                        Scale = marker.Scale,
-                    });
+                        Name = mark.Name,
+                        Markers = new List<RenderModel.MarkerGroup.Marker>()
+                    };
+                    if (mark.Markers != null)
+                    {
+                        foreach(var marker in mark.Markers)
+                        {
+                            newMark.Markers.Add(new RenderModel.MarkerGroup.Marker
+                            {
+                                NodeIndex = (sbyte)marker.NodeIndex,
+                                RegionIndex = marker.RegionIndex,
+                                PermutationIndex = marker.PermutationIndex,
+                                Translation = marker.Translation,
+                                Rotation = marker.Rotation,
+                                Scale = marker.Scale,
+                            });
+                        }
+                    }
+                    result.MarkerGroups.Add(newMark);
                 }
-                result.MarkerGroups.Add(newMark);
             }
 
             result.Geometry = ConvertGeometry(gen4RenderModel.RenderGeometry);
             result.LightgenLights = new List<RenderModel.SkygenLight>();
 
             return result;
+        }
+
+        // Convert a Sep27 (Halo4280911) shared RenderModel into a gen3-compatible RenderModel
+        // ready for JMS export. Sep27 stores its data in *Halo4280911 fields instead of the
+        // standard gen3 fields, so those are mapped here.
+        public static RenderModel ConvertSep27(GameCache Cache, TagTool.Tags.Definitions.RenderModel sep27Mode)
+        {
+            RenderModel result = new RenderModel();
+
+            // regions
+            result.Regions = new List<RenderModel.Region>();
+            if (sep27Mode.RegionsHalo4280911 != null)
+            {
+                foreach (var reg in sep27Mode.RegionsHalo4280911)
+                {
+                    var newRegion = new RenderModel.Region
+                    {
+                        Name = reg.Name,
+                        Permutations = new List<RenderModel.Region.Permutation>()
+                    };
+                    if (reg.Permutations != null)
+                    {
+                        foreach (var perm in reg.Permutations)
+                        {
+                            newRegion.Permutations.Add(new RenderModel.Region.Permutation
+                            {
+                                Name = perm.Name,
+                                MeshCount = (ushort)perm.MeshCount,
+                                MeshIndex = perm.MeshIndex
+                            });
+                        }
+                    }
+                    result.Regions.Add(newRegion);
+                }
+            }
+
+            // materials (same field name as gen3)
+            result.Materials = new List<RenderMaterial>();
+            if (sep27Mode.Materials != null)
+            {
+                foreach (var mat in sep27Mode.Materials)
+                {
+                    result.Materials.Add(new RenderMaterial
+                    {
+                        RenderMethod = mat.RenderMethod
+                    });
+                }
+            }
+
+            // markers
+            result.MarkerGroups = new List<RenderModel.MarkerGroup>();
+            if (sep27Mode.MarkerGroupsHalo4280911 != null)
+            {
+                foreach (var markGroup in sep27Mode.MarkerGroupsHalo4280911)
+                {
+                    var newMark = new RenderModel.MarkerGroup
+                    {
+                        Name = markGroup.Name,
+                        Markers = new List<RenderModel.MarkerGroup.Marker>()
+                    };
+                    if (markGroup.Markers != null)
+                    {
+                        foreach (var marker in markGroup.Markers)
+                        {
+                            newMark.Markers.Add(new RenderModel.MarkerGroup.Marker
+                            {
+                                NodeIndex = (sbyte)marker.NodeIndex,
+                                RegionIndex = marker.RegionIndex,
+                                PermutationIndex = marker.PermutationIndex,
+                                Translation = marker.Translation,
+                                Rotation = marker.Rotation,
+                                Scale = marker.Scale,
+                            });
+                        }
+                    }
+                    result.MarkerGroups.Add(newMark);
+                }
+            }
+
+            result.Geometry = ConvertGeometryFromSep27(sep27Mode.GeometryHalo4280911);
+            result.LightgenLights = new List<RenderModel.SkygenLight>();
+
+            result.InstanceStartingMeshIndex = sep27Mode.InstanceStartingMeshIndex;
+            if (sep27Mode.InstancePlacements != null)
+                result.InstancePlacements = sep27Mode.InstancePlacements;
+
+            return result;
+        }
+
+        // Convert RenderGeometryHalo4280911 (Sep27 inline geometry struct) to a gen3 RenderGeometry.
+        // The block element types (GlobalMeshBlock, CompressionInfoBlock) are shared with the
+        // regular Gen4 path, so the conversion logic mirrors ConvertGeometry(GlobalRenderGeometryStruct).
+        public static RenderGeometry ConvertGeometryFromSep27(TagTool.Tags.Definitions.RenderModel.RenderGeometryHalo4280911 geo)
+        {
+            RenderGeometry newGeo = new RenderGeometry();
+
+            // compression
+            newGeo.Compression = new List<RenderGeometryCompression>();
+            if (geo?.CompressionInfo != null)
+            {
+                foreach (var compress in geo.CompressionInfo)
+                {
+                    newGeo.Compression.Add(new RenderGeometryCompression
+                    {
+                        Flags = (RenderGeometryCompressionFlags)compress.CompressionFlags1,
+                        X = compress.X,
+                        Y = compress.Y,
+                        Z = compress.Z,
+                        U = compress.U,
+                        V = compress.V,
+                    });
+                }
+            }
+
+            // meshes
+            newGeo.Meshes = new List<Mesh>();
+            if (geo?.Meshes != null)
+            {
+                foreach (var mesh in geo.Meshes)
+                {
+                    var newMesh = new Mesh
+                    {
+                        Parts = new List<Part>(),
+                        SubParts = new List<SubPart>(),
+                        IndexBufferIndices = new short[2] { mesh.IndexBufferIndex, -1 },
+                        VertexBufferIndices = ConvertVertexBufferIndices(mesh.VertexBufferIndices),
+                        RigidNodeIndex = mesh.RigidNodeIndex,
+                        IndexBufferType = (PrimitiveType)mesh.IndexBufferType,
+                        ReachType = (VertexTypeReach)mesh.VertexType
+                    };
+
+                    if (mesh.Parts != null)
+                    {
+                        foreach (var part in mesh.Parts)
+                        {
+                            newMesh.Parts.Add(new Part
+                            {
+                                MaterialIndex = part.RenderMethodIndex,
+                                TransparentSortingIndex = part.TransparentSortingIndex,
+                                FirstIndex = part.IndexStart,
+                                IndexCount = part.IndexCount,
+                                FirstSubPartIndex = part.SubpartStart,
+                                SubPartCount = part.SubpartCount,
+                                TypeNew = (Part.PartTypeNew)part.PartType,
+                                VertexCount = part.BudgetVertexCount
+                            });
+                        }
+                    }
+
+                    if (mesh.Subparts != null)
+                    {
+                        foreach (var subpart in mesh.Subparts)
+                        {
+                            newMesh.SubParts.Add(new SubPart
+                            {
+                                FirstIndex = subpart.IndexStart,
+                                IndexCount = subpart.IndexCount,
+                                PartIndex = subpart.PartIndex,
+                                VertexCount = subpart.BudgetVertexCount
+                            });
+                        }
+                    }
+
+                    newGeo.Meshes.Add(newMesh);
+                }
+            }
+
+            newGeo.InstancedGeometryPerPixelLighting = new List<RenderGeometry.StaticPerPixelLighting>();
+
+            // per-mesh node remapping tables (local vertex bone index → global model bone index)
+            newGeo.PerMeshNodeMaps = new List<RenderGeometry.PerMeshNodeMap>();
+            if (geo?.PerMeshNodeMap != null)
+            {
+                foreach (var map in geo.PerMeshNodeMap)
+                {
+                    var newMap = new RenderGeometry.PerMeshNodeMap
+                    {
+                        NodeIndices = new List<RenderGeometry.PerMeshNodeMap.NodeIndex>()
+                    };
+                    if (map.NodeMap != null)
+                    {
+                        foreach (var entry in map.NodeMap)
+                            newMap.NodeIndices.Add(new RenderGeometry.PerMeshNodeMap.NodeIndex { Node = (byte)entry.NodeIndex });
+                    }
+                    newGeo.PerMeshNodeMaps.Add(newMap);
+                }
+            }
+
+            return newGeo;
         }
 
         public static RenderGeometry ConvertGeometry(RenderModelGen4.GlobalRenderGeometryStruct gen4Geometry)
@@ -242,7 +446,7 @@ namespace TagTool.Commands.Porting.Gen4
         private static short[] ConvertVertexBufferIndices(RenderModelGen4.GlobalRenderGeometryStruct.GlobalMeshBlock.VertexBufferIndicesWordArray[] indicesArray)
         {
             List<short> VertexBufferIndices = new List<short>();
-            for (var i = 0; i < 8; i++)
+            for (var i = 0; i < indicesArray.Length; i++)
                 VertexBufferIndices.Add((short)indicesArray[i].VertexBufferIndex);
             return VertexBufferIndices.ToArray();
         }
@@ -250,7 +454,7 @@ namespace TagTool.Commands.Porting.Gen4
         private static short[] ConvertVertexBufferIndices(ScenarioLightmapBspGen4.GlobalRenderGeometryStruct.GlobalMeshBlock.VertexBufferIndicesWordArray[] indicesArray)
         {
             List<short> VertexBufferIndices = new List<short>();
-            for (var i = 0; i < 8; i++)
+            for (var i = 0; i < indicesArray.Length; i++)
                 VertexBufferIndices.Add((short)indicesArray[i].VertexBufferIndex);
             return VertexBufferIndices.ToArray();
         }

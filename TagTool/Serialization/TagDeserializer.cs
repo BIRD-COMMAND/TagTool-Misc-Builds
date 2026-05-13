@@ -128,16 +128,24 @@ namespace TagTool.Serialization
             }
             else
             {
-                if (tagFieldInfo.FieldType.IsPrimitive)
+                try
                 {
-                    if (DeserializePrimitiveProperty(reader, context, attr, tagFieldInfo, instance))
-                        return;
-                }
+                    if (tagFieldInfo.FieldType.IsPrimitive)
+                    {
+                        if (DeserializePrimitiveProperty(reader, context, attr, tagFieldInfo, instance))
+                            return;
+                    }
 
-              
-                var value = DeserializeValue(reader, context, attr, tagFieldInfo.FieldType);
-                tagFieldInfo.SetValue(instance, value);
-                
+                    var value = DeserializeValue(reader, context, attr, tagFieldInfo.FieldType);
+                    tagFieldInfo.SetValue(instance, value);
+                }
+                catch (Exception ex)
+                {
+                    var fieldOffset = reader.BaseStream.Position - baseOffset;
+                    throw new InvalidOperationException(
+                        $"Failed to deserialize field '{tagFieldInfo.Name}' ({tagFieldInfo.FieldType.Name}) on '{instance.GetType().Name}' at struct offset 0x{fieldOffset:X}.",
+                        ex);
+                }
             }
         }
 

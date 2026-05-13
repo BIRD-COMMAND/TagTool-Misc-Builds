@@ -339,8 +339,14 @@ namespace TagTool.Bitmaps
             if (bitmap.ForceBitmapFormat != Bitmap.BitmapUsageFormat.UseDefaultDefinedByUsage)
                 return bitmap.ForceBitmapFormat;
 
-            if (bitmap.UsageOverrides.Count > 0)
+            if (bitmap.UsageOverrides?.Count > 0)
                 return bitmap.UsageOverrides[0].BitmapFormat;
+
+            if (bitmap.UsageOverridesHalo4280911?.Count > 0)
+                return bitmap.UsageOverridesHalo4280911[0].BitmapFormat;
+
+            if (bitmap.UsageOverridesPostHalo4280911?.Count > 0)
+                return bitmap.UsageOverridesPostHalo4280911[0].BitmapFormat;
 
             return Bitmap.BitmapUsageFormat.UseDefaultDefinedByUsage;
         }

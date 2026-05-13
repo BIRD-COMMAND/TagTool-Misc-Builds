@@ -707,13 +707,15 @@ namespace TagTool.Cache
                     return CacheGeneration.HaloOnline;
 
                 case CacheVersion.Halo4220811:
-                case CacheVersion.Halo4280911:
                 case CacheVersion.Halo4E3:
                 case CacheVersion.Halo4:
                 case CacheVersion.Halo4140113:
                 case CacheVersion.Halo4131113:
                 case CacheVersion.H2AMP:
                     return CacheGeneration.Fourth;
+
+                case CacheVersion.Halo4280911:
+                    return CacheGeneration.Third;
 
                 default:
                     return CacheGeneration.Unknown;

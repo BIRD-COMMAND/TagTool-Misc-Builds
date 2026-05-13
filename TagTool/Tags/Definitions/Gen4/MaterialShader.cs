@@ -8,6 +8,7 @@ using static TagTool.Tags.TagFieldFlags;
 namespace TagTool.Tags.Definitions.Gen4
 {
     [TagStructure(Name = "material_shader", Tag = "mats", Size = 0x58)]
+    [TagStructure(Name = "material_shader", Tag = "mats", Size = 0x58, MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911)]
     public class MaterialShader : TagStructure
     {
         public MaterialShaderFlags Flags;

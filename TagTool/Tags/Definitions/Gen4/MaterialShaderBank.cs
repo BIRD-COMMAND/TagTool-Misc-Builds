@@ -8,6 +8,7 @@ using static TagTool.Tags.TagFieldFlags;
 namespace TagTool.Tags.Definitions.Gen4
 {
     [TagStructure(Name = "material_shader_bank", Tag = "mtsb", Size = 0x3C)]
+    [TagStructure(Name = "material_shader_bank", Tag = "mtsb", Size = 0x3C, MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911)]
     public class MaterialShaderBank : TagStructure
     {
         public List<CompiledVertexShaderBlock> CompiledVertexShaders;

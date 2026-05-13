@@ -9,6 +9,7 @@ using System.Numerics;
 using TagTool.Geometry.BspCollisionGeometry;
 using static TagTool.IO.ConsoleHistory;
 using TagTool.Geometry.Utils;
+using TagTool.Geometry.Export;
 
 namespace TagTool.Geometry.Jms
 {
@@ -22,6 +23,180 @@ namespace TagTool.Geometry.Jms
             Cache = cacheContext;
             Jms = jms;
         }
+
+        // -----------------------------------------------------------------------
+        // New path: ExportCollisionModel DTO → JMS
+        // Materials are per-surface (deduplicated by adapter).
+        // Triangle-fan triangulation matches donor jms.rs build_collision_model().
+        // JMS collision export uses donor blam-tags scale factor 100.0 for positions.
+        // -----------------------------------------------------------------------
+
+        public void Export(ExportCollisionModel dto)
+        {
+            int materialCount  = 0;
+            int surfaceCount   = 0;
+            int triangleCount  = 0;
+            int vertexCount    = 0;
+            int skippedCount   = 0;
+            int negDetCount    = 0;
+
+            bool hasNodeTransforms = Jms.Nodes.Count > 0;
+
+            // Precompute which node indices have negative-determinant transforms (handedness flip).
+            // Pure quaternion+translation nodes always have det = +1, but we check explicitly to
+            // catch any unexpected reflections introduced upstream.
+            var checkedNodes = new HashSet<int>();
+            if (hasNodeTransforms)
+            {
+                foreach (var region in dto.Regions)
+                foreach (var perm  in region.Permutations)
+                foreach (var bsp   in perm.Bsps)
+                {
+                    int ni = bsp.NodeIndex;
+                    if (ni < 0 || ni >= Jms.Nodes.Count || !checkedNodes.Add(ni))
+                        continue;
+                    float det = NodeMatrixDeterminant(ni);
+                    if (det < 0f)
+                    {
+                        negDetCount++;
+                        Console.Error.WriteLine(
+                            $"[JmsCollExporter] Node {ni} transform has negative determinant ({det:F4}) — " +
+                            $"handedness flip detected. Winding may be incorrect after transform.");
+                    }
+                }
+            }
+
+            // Record base offset so material indices stay correct if render was already written.
+            int materialBase = Jms.Materials.Count;
+
+            // Add deduplicated materials. ShaderPath = collision material name.
+            // LightmapPath = cell label "permName regionName".
+            for (int i = 0; i < dto.Materials.Count; i++)
+            {
+                var mat  = dto.Materials[i];
+                int slot = Jms.Materials.Count + 1;
+                Jms.Materials.Add(new JmsFormat.JmsMaterial
+                {
+                    Name         = mat.ShaderPath,
+                    MaterialName = $"({slot}) {mat.LightmapPath}",
+                });
+                materialCount++;
+            }
+
+            // Geometry: region → permutation → BSP → surface.
+            // Each surface's vertex ring has already had winding corrected by the adapter
+            // (ring reversed if dot(triangleNormal, planeNormal) < 0).
+            // We fan each corrected polygon (hub = ring[0]) into triangles here.
+            // Vertices are unshared (one per triangle corner), matching donor convention.
+            foreach (var region in dto.Regions)
+            {
+                foreach (var perm in region.Permutations)
+                {
+                    foreach (var bsp in perm.Bsps)
+                    {
+                        int nodeIdx = bsp.NodeIndex;
+
+                        foreach (var surface in bsp.Surfaces)
+                        {
+                            var ring = surface.VertexIndices;
+                            if (ring.Count < 3) { skippedCount++; continue; }
+
+                            surfaceCount++;
+
+                            // Triangle fan: (ring[0], ring[k], ring[k+1]) for k in 1..n-2.
+                            // Winding is correct because the adapter reversed the ring when needed.
+                            for (int k = 1; k + 1 < ring.Count; k++)
+                            {
+                                int ia = ring[0], ib = ring[k], ic = ring[k + 1];
+                                if (ia >= bsp.Vertices.Count || ib >= bsp.Vertices.Count || ic >= bsp.Vertices.Count)
+                                {
+                                    skippedCount++;
+                                    continue;
+                                }
+
+                                int triBase = Jms.Vertices.Count;
+
+                                foreach (int vi in new[] { ia, ib, ic })
+                                {
+                                    // Apply JMS scale ×100; apply node world transform if skeleton is present.
+                                    RealPoint3d pos = bsp.Vertices[vi] * 100.0f;
+                                    if (hasNodeTransforms && nodeIdx >= 0 && nodeIdx < Jms.Nodes.Count)
+                                        pos = TransformPointByNode(pos, nodeIdx);
+
+                                    Jms.Vertices.Add(new JmsFormat.JmsVertex
+                                    {
+                                        Position = pos,
+                                        Normal   = new RealVector3d(0, 0, 1),
+                                        NodeSets = new List<JmsFormat.JmsVertex.NodeSet>
+                                        {
+                                            new JmsFormat.JmsVertex.NodeSet
+                                            {
+                                                NodeIndex  = nodeIdx,
+                                                NodeWeight = 1.0f,
+                                            }
+                                        },
+                                        UvSets = new List<JmsFormat.JmsVertex.UvSet>
+                                        {
+                                            new JmsFormat.JmsVertex.UvSet
+                                            {
+                                                TextureCoordinates = new RealPoint2d(0, 0),
+                                            }
+                                        },
+                                    });
+                                }
+                                vertexCount += 3;
+
+                                Jms.Triangles.Add(new JmsFormat.JmsTriangle
+                                {
+                                    MaterialIndex = materialBase + surface.MaterialIndex,
+                                    VertexIndices = new List<int> { triBase, triBase + 1, triBase + 2 },
+                                });
+                                triangleCount++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            Console.WriteLine($"  Collision DTO path: corrected surface winding against BSP plane normals.");
+            Console.WriteLine($"  Tag:                  {dto.TagPath}");
+            Console.WriteLine($"  Materials:            {materialCount}");
+            Console.WriteLine($"  Nodes:                {dto.Nodes.Count} (skeleton transforms: {(hasNodeTransforms ? "yes" : "no")})");
+            Console.WriteLine($"  Regions:              {dto.Regions.Count}");
+            Console.WriteLine($"  Surfaces total:       {dto.WindingTotal + dto.WindingMalformed}");
+            Console.WriteLine($"    Kept (no flip):     {dto.WindingKept}");
+            Console.WriteLine($"    Flipped:            {dto.WindingFlipped}");
+            Console.WriteLine($"    Degenerate skipped: {dto.WindingDegenerate}");
+            Console.WriteLine($"    Malformed skipped:  {dto.WindingMalformed}");
+            if (dto.WindingMissingPlane > 0)
+                Console.WriteLine($"    Missing plane data: {dto.WindingMissingPlane} (treated as kept)");
+            Console.WriteLine($"  Triangles emitted:    {triangleCount}");
+            Console.WriteLine($"  Vertices emitted:     {vertexCount}");
+            if (skippedCount > 0)
+                Console.WriteLine($"  Skipped (OOB index):  {skippedCount}");
+            if (negDetCount > 0)
+                Console.Error.WriteLine($"  WARNING: {negDetCount} node transform(s) with negative determinant (handedness flip).");
+            else
+                Console.WriteLine($"  Node transforms:      all positive determinant (no handedness flip)");
+            Console.WriteLine($"  Scale:                x100.0 applied");
+        }
+
+        // Compute the 3×3 determinant of a node's rotation matrix built from its quaternion.
+        // Pure rotation matrices always have det = +1; a negative result indicates reflection.
+        private float NodeMatrixDeterminant(int nodeIdx)
+        {
+            var node = Jms.Nodes[nodeIdx];
+            var q    = new Quaternion(node.Rotation.I, node.Rotation.J, node.Rotation.K, node.Rotation.W);
+            Matrix4x4 m = Matrix4x4.CreateFromQuaternion(q);
+            // 3×3 upper-left determinant.
+            return m.M11 * (m.M22 * m.M33 - m.M23 * m.M32)
+                 - m.M12 * (m.M21 * m.M33 - m.M23 * m.M31)
+                 + m.M13 * (m.M21 * m.M32 - m.M22 * m.M31);
+        }
+
+        // -----------------------------------------------------------------------
+        // Legacy path: CollisionModel → JMS directly
+        // -----------------------------------------------------------------------
 
         public void Export(CollisionModel coll)
         {

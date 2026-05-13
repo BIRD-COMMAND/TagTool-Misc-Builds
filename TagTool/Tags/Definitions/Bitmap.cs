@@ -11,6 +11,7 @@ namespace TagTool.Tags.Definitions
     [TagStructure(Name = "bitmap", Tag = "bitm", Size = 0xB8, MinVersion = CacheVersion.HaloOnlineED, MaxVersion = CacheVersion.HaloOnline155080)]
     [TagStructure(Name = "bitmap", Tag = "bitm", Size = 0xAC, MinVersion = CacheVersion.HaloOnline235640, MaxVersion = CacheVersion.HaloOnline700123)]
     [TagStructure(Name = "bitmap", Tag = "bitm", Size = 0xC0, MinVersion = CacheVersion.HaloReach)]
+    [TagStructure(Name = "bitmap", Tag = "bitm", Size = 0xC0, MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911)]
     public class Bitmap : TagStructure
 	{
         [TagField(EnumType = typeof(int))]
@@ -48,7 +49,14 @@ namespace TagTool.Tags.Definitions
         [TagField(MinVersion = CacheVersion.HaloOnlineED, MaxVersion = CacheVersion.HaloOnline700123)]
         public List<TightBinding> TightBoundsOld;
 
+        [TagField(MaxVersion = CacheVersion.Halo4220811)]
         public List<UsageOverride> UsageOverrides;
+
+        [TagField(MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911)]
+        public List<UsageOverrideHalo4280911> UsageOverridesHalo4280911;
+
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
+        public List<UsageOverride> UsageOverridesPostHalo4280911;
         public List<Sequence> ManualSequences;
 
         [TagField(MinVersion = CacheVersion.HaloReach)]
@@ -63,8 +71,11 @@ namespace TagTool.Tags.Definitions
 
         public List<TagResourceReference> HardwareTextures;
 
-        [TagField(MaxVersion = CacheVersion.HaloOnline155080)]
-        [TagField(MinVersion = CacheVersion.HaloReach)]
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
+        public List<TagResourceReference> StitchableHardwareTextures;
+
+        [TagField(MinVersion = CacheVersion.HaloReach, MaxVersion = CacheVersion.Halo4280911)]
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
         public List<TagResourceReference> InterleavedHardwareTextures;
 
         [TagField(MinVersion = CacheVersion.HaloOnlineED, MaxVersion = CacheVersion.HaloOnline700123)]
@@ -129,7 +140,17 @@ namespace TagTool.Tags.Definitions
             [TagEnumMember(MinVersion = CacheVersion.HaloReach)]
             SignedNoise,
             [TagEnumMember(MinVersion = CacheVersion.HaloReach)]
-            RoughnessMapAuto
+            RoughnessMapAuto,
+            [TagEnumMember(MinVersion = CacheVersion.Halo4280911)]
+            NormalMapFromStandardOrientationOfMayaModoZbrush,
+            [TagEnumMember(MinVersion = CacheVersion.Halo4280911)]
+            ColorGrading,
+            [TagEnumMember(MinVersion = CacheVersion.Halo4280911)]
+            DetailNormalMapFromStandardOrientationWithDistanceFade,
+            [TagEnumMember(MinVersion = CacheVersion.Halo4280911)]
+            DiffuseTextureArray,
+            [TagEnumMember(MinVersion = CacheVersion.Halo4280911)]
+            PalettizedTextureArray
         }
 
         [TagStructure(Size = 0x8)]
@@ -182,7 +203,9 @@ namespace TagTool.Tags.Definitions
                 AutomaticallyDetermineSlicer,
                 NoSlicingeachSourceBitmapGeneratesOneElement,
                 ColorPlateSlicer,
-                CubeMapSlicer
+                CubeMapSlicer,
+                [TagEnumMember(MinVersion = CacheVersion.Halo4280911)]
+                ColorGradingSlicer
             }
 
             [Flags]
@@ -192,7 +215,9 @@ namespace TagTool.Tags.Definitions
                 RotateCubeMapToMatchDirectXFormat = 1 << 1,
                 SpritesShrinkElementsToSmallestNonZeroAlphaRegion = 1 << 2,
                 SpritesShrinkElementsToSmallestNonZeroColorAndAlphaRegion = 1 << 3,
-                UnsignedSignedScaleAndBias = 1 << 4
+                UnsignedSignedScaleAndBias = 1 << 4,
+                [TagEnumMember(MinVersion = CacheVersion.Halo4280911)]
+                ColorGradingSrgbCorrection = 1 << 5
             }
 
             public enum BitmapUsagePackerDef : sbyte
@@ -216,6 +241,144 @@ namespace TagTool.Tags.Definitions
                 PointSampled,
                 BoxFilter,
                 GaussianFilter
+            }
+
+            [Flags]
+            public enum BitmapUsageDownsampleFlagsDef : ushort
+            {
+                SpritesColorBleedInZeroAlphaRegions = 1 << 0,
+                PreMultiplyAlphabeforeDownsampling = 1 << 1,
+                PostDivideAlphaafterDownsampling = 1 << 2,
+                HeightMapConvertToBumpMap = 1 << 3,
+                DetailMapFadeToGray = 1 << 4,
+                SignedUnsignedScaleAndBias = 1 << 5,
+                IllumMapFadeToBlack = 1 << 6,
+                ZBumpScaleByHeightAndRenormalize = 1 << 7
+            }
+
+            public enum BitmapUsageSwizzleDef : sbyte
+            {
+                Default,
+                SourceRedChannel,
+                SourceGreenChannel,
+                SourceBlueChannel,
+                SourceAlphaChannel,
+                SetTo10,
+                SetTo00,
+                SetTo05
+            }
+        }
+
+        [TagStructure(Size = 0x28, MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911)]
+        public class UsageOverrideHalo4280911 : TagStructure
+        {
+            public float SourceGamma;
+            public BitmapCurveEnum BitmapCurve;
+            public BitmapUsageFlagsDef Flags;
+            public BitmapUsageSlicerDef Slicer;
+            public BitmapUsageDicerFlagsDef DicerFlags;
+            public BitmapUsagePackerDef Packer;
+            public BitmapUsagePackerFlagsDef PackerFlags;
+            public BitmapTypes Type;
+            public sbyte MipmapLimit;
+            public BitmapSmallestMipDef SmallestMip;
+            public BitmapUsageDownsampleFilterDefHalo4280911 DownsampleFilter;
+            public sbyte FilterRadiusBias;
+            public BitmapUsageDownsampleFlagsDef DownsampleFlags;
+            public RealRgbColor SpriteBackgroundColor;
+            public BitmapUsageSwizzleDef SwizzleRed;
+            public BitmapUsageSwizzleDef SwizzleGreen;
+            public BitmapUsageSwizzleDef SwizzleBlue;
+            public BitmapUsageSwizzleDef SwizzleAlpha;
+            [TagField(EnumType = typeof(int))]
+            public BitmapUsageFormat BitmapFormat;
+
+            public enum BitmapCurveEnum : int
+            {
+                Unknown,
+                XRGBgammaAbout20SRGBgamma22,
+                Gamma20,
+                Linear,
+                OffsetLog,
+                SRGB
+            }
+
+            [Flags]
+            public enum BitmapUsageFlagsDef : byte
+            {
+                IgnoreCurveOverride = 1 << 0,
+                DontAllowSizeOptimization = 1 << 1,
+                SwapAxes = 1 << 2
+            }
+
+            public enum BitmapUsageSlicerDef : sbyte
+            {
+                AutomaticallyDetermineSlicer,
+                NoSlicingeachSourceBitmapGeneratesOneElement,
+                ColorPlateSlicer,
+                CubeMapSlicer,
+                ColorGradingSlicer
+            }
+
+            [Flags]
+            public enum BitmapUsageDicerFlagsDef : byte
+            {
+                ConvertPlateColorKeyToAlphaChannel = 1 << 0,
+                RotateCubeMapToMatchDirectXFormat = 1 << 1,
+                SpritesShrinkElementsToSmallestNonZeroAlphaRegion = 1 << 2,
+                SpritesShrinkElementsToSmallestNonZeroColorAndAlphaRegion = 1 << 3,
+                UnsignedSignedScaleAndBias = 1 << 4,
+                ColorGradingSrgbCorrection = 1 << 5
+            }
+
+            public enum BitmapUsagePackerDef : sbyte
+            {
+                NoPacking,
+                SpritePackpacksElementsIntoAsFewBitmapsAsPossible,
+                SpritePackIfNeededpacksElementsIntoAsFewBitmapsAsPossible,
+                _3DPackpacksElementsIntoA3DBitmap
+            }
+
+            [Flags]
+            public enum BitmapUsagePackerFlagsDef : byte
+            {
+                ShrinkSpriteTexturePagesTightlyToContent = 1 << 0
+            }
+
+            public enum BitmapTypes : sbyte
+            {
+                _2DTexture,
+                _3DTexture,
+                CubeMap,
+                Array
+            }
+
+            public enum BitmapSmallestMipDef : sbyte
+            {
+                _1Pixel,
+                _2Pixel,
+                _4Pixel,
+                _8Pixel,
+                _16Pixel,
+                _32Pixel,
+                _64Pixel,
+                _128Pixel,
+                _256Pixel,
+                _512Pixel,
+                _1024Pixel
+            }
+
+            public enum BitmapUsageDownsampleFilterDefHalo4280911 : sbyte
+            {
+                PointSampled,
+                BoxFilter,
+                BlackmanFilter,
+                LanczosFilter,
+                NuttallFilter,
+                BlackmanHarrisFilter,
+                BlackmanNuttallFilter,
+                FlatTopFilter,
+                ExtremeFilter
             }
 
             [Flags]

@@ -10,8 +10,46 @@ namespace TagTool.Bitmaps
 {
     public static class BitmapExtractor
     {
+        private static bool UsePrototypeGen4BitmapPath(GameCache cache)
+        {
+            return cache.Version == CacheVersion.Halo4220811 ||
+                   cache.Version == CacheVersion.Halo4280911;
+        }
+
+        private static byte[] ExtractPrototypeGen4BitmapData(GameCache cache, Bitmap bitmap, int imageIndex, ref Bitmap.Image image)
+        {
+            var resourceReference = bitmap.HardwareTextures[imageIndex];
+            var resourceDefinition = cache.ResourceCache.GetBitmapTextureInteropResourceGen4(resourceReference);
+            if (resourceDefinition?.TextureInterop?.Definition == null)
+            {
+                Console.Error.WriteLine("No Gen4 resource associated to this bitmap.");
+                return null;
+            }
+
+            var textureInterop = resourceDefinition.TextureInterop.Definition;
+            image.Width = textureInterop.Width;
+            image.Height = textureInterop.Height;
+            image.Depth = textureInterop.Depth;
+            image.Type = (BitmapType)textureInterop.Type;
+            image.MipmapCount = (sbyte)Math.Max(0, textureInterop.TotalMipmapCount - 1);
+
+            var primary = textureInterop.PixelData?.Data ?? Array.Empty<byte>();
+            var secondary = textureInterop.MediumResData?.Data ?? Array.Empty<byte>();
+
+            if (secondary.Length == 0)
+                return primary;
+
+            var result = new byte[secondary.Length + primary.Length];
+            Array.Copy(secondary, 0, result, 0, secondary.Length);
+            Array.Copy(primary, 0, result, secondary.Length, primary.Length);
+            return result;
+        }
+
         public static byte[] ExtractBitmapData(GameCache cache, Bitmap bitmap, int imageIndex, ref Bitmap.Image image)
         {
+            if (UsePrototypeGen4BitmapPath(cache))
+                return ExtractPrototypeGen4BitmapData(cache, bitmap, imageIndex, ref image);
+
             var resourceReference = bitmap.HardwareTextures[imageIndex];
             var resourceDefinition = cache.ResourceCache.GetBitmapTextureInteropResource(resourceReference);
             if (cache is GameCacheHaloOnlineBase)
@@ -61,6 +99,17 @@ namespace TagTool.Bitmaps
         public static BaseBitmap ExtractBitmap(GameCache cache, Bitmap bitmap, int imageIndex, string tagName, bool forDDS = true)
         {
             if (cache is GameCacheHaloOnlineBase)
+            {
+                var image = bitmap.Images[imageIndex].DeepCloneV2();
+                return new BaseBitmap(image, ExtractBitmapData(cache, bitmap, imageIndex, ref image));
+            }
+            else if (cache.Version == CacheVersion.Halo4280911)
+            {
+                // Sep27 prototype: MediumResData = mip0 tiled surface, PixelData = mip1+.
+                // Route through the proper Xbox 360 untiling path.
+                return new BitmapConverterGen4(cache).ConvertBitmap(bitmap, imageIndex, tagName, forDDS);
+            }
+            else if (UsePrototypeGen4BitmapPath(cache)) // Halo4220811: raw fallback unchanged
             {
                 var image = bitmap.Images[imageIndex].DeepCloneV2();
                 return new BaseBitmap(image, ExtractBitmapData(cache, bitmap, imageIndex, ref image));

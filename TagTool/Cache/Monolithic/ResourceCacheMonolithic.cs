@@ -18,7 +18,7 @@ namespace TagTool.Cache.Monolithic
         public ResourceCacheMonolithic(GameCacheMonolithic cache)
         {
             Backend = cache.Backend;
-            Deserializer = new ResourceDeserializer(cache.Version, cache.Platform);
+            Deserializer = new ResourceDeserializer(cache.DefinitionVersion, cache.Platform);
         }
 
         public override TagResourceReference CreateBinkResource(BinkResource binkResourceDefinition)

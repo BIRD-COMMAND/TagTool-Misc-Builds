@@ -12,6 +12,7 @@ namespace TagTool.Cache.Monolithic
     public class GameCacheMonolithic : GameCache
     {
         public MonolithicTagFileBackend Backend;
+        public CacheVersion DefinitionVersion { get; private set; }
 
         public TagCacheMonolithic TagCacheMono;
         public StringTableMonolithic StringTableMono;
@@ -26,9 +27,12 @@ namespace TagTool.Cache.Monolithic
             DisplayName = file.Name;
             Version = version;
             Platform = platform;
+            // Keep monolithic tags-build definitions on their native cache version so
+            // version-gated Sep 27 2011 tag layouts can deserialize correctly.
+            DefinitionVersion = version;
             Endianness = CacheVersionDetection.IsLittleEndian(version, Platform) ? EndianFormat.LittleEndian : EndianFormat.BigEndian;
             Backend = new MonolithicTagFileBackend(file, Endianness, MonolithicTagFileBackend.LoadFlags.TagIndex);
-            Deserializer = new TagDeserializer(version, platform);
+            Deserializer = new TagDeserializer(DefinitionVersion, platform);
             TagCacheMono = new TagCacheMonolithic(Backend, version, platform);
             StringTableMono = new StringTableMonolithic();
             ResourceCacheMono = new ResourceCacheMonolithic(this);
@@ -52,7 +56,7 @@ namespace TagTool.Cache.Monolithic
                     platform = CachePlatform.Original;
                     break;
                 case "2ccbe86e-fec7-478e-b346-a413be9f0d02":
-                    version = CacheVersion.HaloReach11883;
+                    version = CacheVersion.Halo4220811;
                     platform = CachePlatform.Original;
                     break;
                 case "04c0ba10-efd0-4bd0-8277-aaaec892cd6d":

@@ -8,6 +8,7 @@ using static TagTool.Tags.TagFieldFlags;
 namespace TagTool.Tags.Definitions.Gen4
 {
     [TagStructure(Name = "material", Tag = "mat ", Size = 0x44)]
+    [TagStructure(Name = "material", Tag = "mat ", Size = 0x44, MinVersion = CacheVersion.Halo4280911, MaxVersion = CacheVersion.Halo4280911)]
     public class Material : TagStructure
     {
         [TagField(ValidTags = new [] { "mats" })]

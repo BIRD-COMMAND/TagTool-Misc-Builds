@@ -4,13 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TagTool.Cache;
-using TagTool.Tags.Definitions.Gen4;
+using SharedDefs = TagTool.Tags.Definitions;
 
 namespace TagTool.Commands.Gen4.Models
 {
     static class ModelContextFactory
     {
-        public static CommandContext Create(CommandContext parent, GameCache cache, CachedTag tag, Model hlmt)
+        public static CommandContext Create(CommandContext parent, GameCache cache, CachedTag tag, SharedDefs.Model hlmt)
         {
             var groupName = tag.Group.ToString();
 
@@ -22,9 +22,10 @@ namespace TagTool.Commands.Gen4.Models
             return context;
         }
 
-        public static void Populate(CommandContext commandContext, GameCache cache, CachedTag tag, Model hlmt)
+        public static void Populate(CommandContext commandContext, GameCache cache, CachedTag tag, SharedDefs.Model hlmt)
         {
             commandContext.AddCommand(new ExportJMSCommand(cache, hlmt));
+            commandContext.AddCommand(new DiagnoseSep27RenderModelCommand(cache, hlmt));
         }
     }
 }

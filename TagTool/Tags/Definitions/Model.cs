@@ -4,6 +4,7 @@ using TagTool.Cache;
 using TagTool.Common;
 using TagTool.Damage;
 using static TagTool.Tags.TagFieldFlags;
+using Gen4Defs = TagTool.Tags.Definitions.Gen4;
 
 namespace TagTool.Tags.Definitions
 {
@@ -11,7 +12,10 @@ namespace TagTool.Tags.Definitions
     [TagStructure(Name = "model", Tag = "hlmt", Size = 0x1A0, MaxVersion = CacheVersion.Halo3ODST)]
     [TagStructure(Name = "model", Tag = "hlmt", Size = 0x1B4, MaxVersion = CacheVersion.HaloOnline449175)]
     [TagStructure(Name = "model", Tag = "hlmt", Size = 0x1B8, MinVersion = CacheVersion.HaloOnline498295, MaxVersion = CacheVersion.HaloOnline700123)]
-    [TagStructure(Name = "model", Tag = "hlmt", Size = 0x220, MinVersion = CacheVersion.HaloReach)]
+    [TagStructure(Name = "model", Tag = "hlmt", Size = 0x224, Version = CacheVersion.Halo4220811)]
+    [TagStructure(Name = "model", Tag = "hlmt", Size = 0x238, Version = CacheVersion.Halo4280911)]
+    [TagStructure(Name = "model", Tag = "hlmt", Size = 0x260, MinVersion = CacheVersion.Halo4E3)]
+    [TagStructure(Name = "model", Tag = "hlmt", Size = 0x220, MinVersion = CacheVersion.HaloReach, MaxVersion = CacheVersion.HaloReach11883)]
     public partial class Model : TagStructure
 	{
         [TagField(ValidTags = new[] { "mode" })] public CachedTag RenderModel;
@@ -25,6 +29,23 @@ namespace TagTool.Tags.Definitions
         public int ModelChecksum;
         [TagField(MinVersion = CacheVersion.HaloReach)]
         public int CollisionModelChecksum;
+
+        [TagField(MinVersion = CacheVersion.Halo4280911, ValidTags = new[] { "stli" })]
+        public CachedTag LightingInfo;
+        [TagField(MinVersion = CacheVersion.Halo4280911)]
+        public Gen4Defs.Model.ScenarioStructureSizeEnum SizeClass;
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
+        public Gen4Defs.Model.ModelLightmapFlags LightmapFlags;
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
+        public int LightmapVariant;
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
+        public float PvsBoundingBoxExtensionFactor;
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
+        public RealVector3d PvsBlockSize;
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
+        public int PvsSamplingSubdivisionPerAxis;
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
+        public float PvsVisibilityThreshold;
 
         public float DisappearDistance;
         public float BeginFadeDistance;
@@ -47,18 +68,27 @@ namespace TagTool.Tags.Definitions
         public float CloseDetailDisappearDistance;
         [TagField(MinVersion = CacheVersion.HaloReach)]
         public float TessellationMaxDrawDistance;
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
+        public Gen4Defs.Model.ModelLodResourceDistanceFlags ResourceDistanceOverrideFlags;
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
+        public float MediumPriorityDistance;
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
+        public float LowPriorityDistance;
 
         [TagField(ValidTags = new[] { "mode" }, MaxVersion = CacheVersion.HaloOnline700123)]
         public CachedTag LodModel;
 
+        [TagField(MaxVersion = CacheVersion.Halo4220811)]
         public List<Variant> Variants;
+        [TagField(MinVersion = CacheVersion.Halo4280911)]
+        public List<ModelVariantBlockHalo4280911> VariantsHalo4280911;
 
         [TagField(MinVersion = CacheVersion.Halo3ODST)]
         public List<RegionName> RegionSort;
 
         public List<InstanceGroup> InstanceGroups;
 
-        [TagField(MinVersion = CacheVersion.HaloReach)]
+        [TagField(MinVersion = CacheVersion.HaloReach, MaxVersion = CacheVersion.HaloReach11883)]
         public List<Material> ReachMaterialsOld;
         public List<Material> Materials;
 
@@ -75,8 +105,15 @@ namespace TagTool.Tags.Definitions
         [TagField(MinVersion = CacheVersion.Halo3ODST, MaxVersion = CacheVersion.Halo3ODST)]
         public List<GrenadeTarget> GrenadeTargets;
         
+        [TagField(MaxVersion = CacheVersion.Halo4280911)]
         public List<CollisionRegion> CollisionRegions;
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
+        public List<Gen4Defs.Model.ModelRegionBlock> CollisionRegionsHalo4280911;
+
+        [TagField(MaxVersion = CacheVersion.Halo4280911)]
         public List<Node> Nodes;
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
+        public List<Gen4Defs.Model.ModelNodeBlock> NodesHalo4280911;
         public int RuntimeNodeListChecksum;
 
         [TagField(MaxVersion = CacheVersion.HaloOnline700123)]
@@ -85,7 +122,10 @@ namespace TagTool.Tags.Definitions
         [TagField(ValidTags = new[] { "udlg" })] public CachedTag PrimaryDialogue;
         [TagField(ValidTags = new[] { "udlg" })] public CachedTag SecondaryDialogue;
 
+        [TagField(MaxVersion = CacheVersion.Halo4280911)]
         public FlagsValue Flags;
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
+        public Gen4Defs.Model.ModelFlags FlagsHalo4280911;
         public StringId DefaultDialogueEffect;
 
         [TagField(Length = 8)]
@@ -93,11 +133,16 @@ namespace TagTool.Tags.Definitions
         [TagField(Length = 8)]
         public int[] RenderOnlySectionFlags = new int[8];
 
+        [TagField(MaxVersion = CacheVersion.Halo4280911)]
         public RuntimeFlagsValue RuntimeFlags;
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
+        public Gen4Defs.Model.ModelPrivateFlags RuntimeFlagsHalo4280911;
         [TagField(MinVersion = CacheVersion.HaloOnline498295, MaxVersion = CacheVersion.HaloOnline700123)]
         public uint Unknown3;
 
         public List<ScenarioLoadParametersBlock> ScenarioLoadParameters;
+        [TagField(MinVersion = CacheVersion.Halo4E3)]
+        public List<Gen4Defs.Model.ModelGameModeRenderModelOverride> GameModeRenderModelOverride;
 
         [TagField(MinVersion = CacheVersion.HaloReach)]
         public float SkyParallaxPercent;
@@ -134,6 +179,10 @@ namespace TagTool.Tags.Definitions
         public float Radius;
         [TagField(MinVersion = CacheVersion.HaloReach)]
         public RealPoint3d Offset;
+        [TagField(MinVersion = CacheVersion.Halo4220811, MaxVersion = CacheVersion.Halo4280911)]
+        public float AnimationContextRadius;
+        [TagField(MinVersion = CacheVersion.Halo4220811, MaxVersion = CacheVersion.Halo4280911)]
+        public List<AnimationContextBlock> AnimationContexts;
 
         public enum ShadowFadeDistanceValue : short
         {
@@ -345,6 +394,148 @@ namespace TagTool.Tags.Definitions
                 Johnson,
                 Mickey,
                 Romeo
+            }
+        }
+
+        [TagStructure(Size = 0x38)]
+        public class ModelVariantBlockHalo4280911 : TagStructure
+        {
+            public StringId Name;
+
+            [TagField(Length = 16)]
+            public RuntimeRegionIndexArray[] RuntimeVariantRegionIndices;
+
+            public List<ModelVariantRegionBlockHalo4280911> Regions;
+            public List<ModelVariantObjectBlockHalo4280911> Objects;
+            public int InstanceGroup;
+
+            [TagField(Length = 8, Flags = Padding)]
+            public byte[] Padding0;
+
+            [TagStructure(Size = 0x1)]
+            public class RuntimeRegionIndexArray : TagStructure
+            {
+                public sbyte RuntimeRegionIndex;
+            }
+
+            [TagStructure(Size = 0x18)]
+            public class ModelVariantRegionBlockHalo4280911 : TagStructure
+            {
+                public StringId RegionName;
+                public sbyte RuntimeRegionIndex;
+                public sbyte RuntimeFlags;
+                public short ParentVariant;
+                public List<ModelVariantPermutationBlockHalo4280911> Permutations;
+
+                public RegionSortValue SortOrder;
+
+                [TagField(Length = 0x2, Flags = Padding)]
+                public byte[] Padding0;
+
+                public enum RegionSortValue : short
+                {
+                    NoSorting,
+                    Minus5Closest,
+                    Minus4,
+                    Minus3,
+                    Minus2,
+                    Minus1,
+                    ZeroSameAsModel,
+                    Plus1,
+                    Plus2,
+                    Plus3,
+                    Plus4,
+                    Plus5Farthest,
+                }
+            }
+
+            [TagStructure(Size = 0x24)]
+            public class ModelVariantPermutationBlockHalo4280911 : TagStructure
+            {
+                public StringId PermutationName;
+                public sbyte RuntimePermutationIndex;
+                public ModelVariantPermutationFlags Flags;
+
+                [TagField(Length = 0x2, Flags = Padding)]
+                public byte[] Padding0;
+
+                public float Probability;
+
+                // The live Sep27 states payload does not deserialize like retail H4, so keep
+                // the raw tag-block header here and avoid recursing into it while we only need
+                // runtime region/permutation selectors for diagnostics and export routing.
+                public RawTagBlockHeader States;
+
+                [TagField(Length = 5)]
+                public ModelStatePermutationIndexArray[] RuntimeStatePermutationIndices;
+
+                [TagField(Length = 0x7, Flags = Padding)]
+                public byte[] Padding1;
+
+                [Flags]
+                public enum ModelVariantPermutationFlags : byte
+                {
+                    CopyStatesToAllPermutations = 1 << 0
+                }
+
+                [TagStructure(Size = 0x1)]
+                public class ModelStatePermutationIndexArray : TagStructure
+                {
+                    public sbyte RuntimePermutationIndex;
+                }
+            }
+
+            [TagStructure(Size = 0x24)]
+            public class ModelVariantObjectBlockHalo4280911 : TagStructure
+            {
+                public StringId ParentMarker;
+                public StringId ParentControllingSeatLabel;
+                public StringId ChildMarker;
+                public StringId ChildVariantName;
+
+                [TagField(ValidTags = new[] { "obje" })]
+                public CachedTag ChildObject;
+
+                public short DamageSection;
+
+                [TagField(Length = 0x2, Flags = Padding)]
+                public byte[] Padding0;
+            }
+
+            [TagStructure(Size = 0xC)]
+            public class RawTagBlockHeader : TagStructure
+            {
+                public int Count;
+                public uint Address;
+                public int Unknown;
+            }
+
+            [TagStructure(Size = 0xC)]
+            public class ModelVariantStateBlockHalo4280911 : TagStructure
+            {
+                public StringId PermutationName;
+                public sbyte RuntimePermutationIndex;
+                public PropertyFlagsValue PropertyFlags;
+                public StateValue State;
+                public float InitialProbability;
+
+                [Flags]
+                public enum PropertyFlagsValue : byte
+                {
+                    Blurred = 1 << 0,
+                    HellaBlurred = 1 << 1,
+                    Unshielded = 1 << 2,
+                    BatteryDepleted = 1 << 3
+                }
+
+                public enum StateValue : short
+                {
+                    Default,
+                    MinorDamage,
+                    MediumDamage,
+                    MajorDamage,
+                    Destroyed
+                }
             }
         }
 
@@ -1365,6 +1556,13 @@ namespace TagTool.Tags.Definitions
             public StringId Marker2Name;
             public uint Marker2Index;
             public float Radius;
+        }
+
+        [TagStructure(Size = 0x28)]
+        public class AnimationContextBlock : TagStructure
+        {
+            [TagField(Length = 0x28, Flags = Padding)]
+            public byte[] Data;
         }
 
         [TagStructure(Size = 0x8)]

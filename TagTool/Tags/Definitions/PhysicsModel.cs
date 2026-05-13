@@ -4,6 +4,7 @@ using TagTool.Havok;
 using System;
 using System.Collections.Generic;
 using static TagTool.Tags.TagFieldFlags;
+using Gen4Defs = TagTool.Tags.Definitions.Gen4;
 
 namespace TagTool.Tags.Definitions
 {
@@ -48,8 +49,11 @@ namespace TagTool.Tags.Definitions
         public List<Material> Materials;
         public List<Sphere> Spheres;
 
-        [TagField(Flags = Padding, Length = 12)]
+        [TagField(Flags = Padding, Length = 12, MaxVersion = CacheVersion.HaloOnline700123)]
         public byte[] UnusedMultiSpheres;
+
+        [TagField(MinVersion = CacheVersion.HaloReach)]
+        public List<Gen4Defs.PhysicsModel.MultiSpheresBlockStruct> MultiSpheres;
 
         public List<Pill> Pills;
         public List<Box> Boxes;
@@ -71,19 +75,34 @@ namespace TagTool.Tags.Definitions
         public List<Region> Regions;
         public List<Node> Nodes;
 
-        [TagField(Flags = Padding, Length = 12)]
+        [TagField(Flags = Padding, Length = 12, MaxVersion = CacheVersion.HaloOnline700123)]
         public byte[] UnusedErrors;
-        [TagField(Flags = Padding, Length = 12)]
+        [TagField(MinVersion = CacheVersion.HaloReach)]
+        public List<Gen4Defs.PhysicsModel.GlobalErrorReportCategoriesBlock> Errors;
+
+        [TagField(Flags = Padding, Length = 12, MaxVersion = CacheVersion.HaloOnline700123)]
         public byte[] UnusedPointToPathCurves;
 
-        public List<LimitedHingeConstraint> LimitedHingeConstraints;
-        public List<BallAndSocketConstraint> BallAndSocketConstraints;
+        [TagField(MinVersion = CacheVersion.HaloReach)]
+        public List<Gen4Defs.PhysicsModel.PointToPathCurveBlock> PointToPathCurves;
 
-        [TagField(Flags = Padding, Length = 12)]
+        public List<LimitedHingeConstraint> LimitedHingeConstraints;
+        [TagField(MaxVersion = CacheVersion.HaloOnline700123)]
+        public List<BallAndSocketConstraint> BallAndSocketConstraints;
+        [TagField(MinVersion = CacheVersion.HaloReach)]
+        public List<Gen4Defs.PhysicsModel.BallAndSocketConstraintsBlock> BallAndSocketConstraintsReach;
+
+        [TagField(Flags = Padding, Length = 12, MaxVersion = CacheVersion.HaloOnline700123)]
         public byte[] UnusedStiffSpringConstraints;
 
-        [TagField(Flags = Padding, Length = 12)]
+        [TagField(MinVersion = CacheVersion.HaloReach)]
+        public List<Gen4Defs.PhysicsModel.StiffSpringConstraintsBlock> StiffSpringConstraints;
+
+        [TagField(Flags = Padding, Length = 12, MaxVersion = CacheVersion.HaloOnline700123)]
         public byte[] UnusedPrismaticConstraints;
+
+        [TagField(MinVersion = CacheVersion.HaloReach)]
+        public List<Gen4Defs.PhysicsModel.PrismaticConstraintsBlock> PrismaticConstraints;
 
         public List<Phantom> Phantoms;
 

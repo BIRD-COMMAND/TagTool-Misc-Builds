@@ -7,6 +7,7 @@ using TagTool.Cache;
 using TagTool.Common;
 using System.Numerics;
 using Assimp;
+using TagTool.Geometry;
 using TagTool.Pathfinding;
 using TagTool.Geometry.Export;
 
@@ -146,172 +147,68 @@ namespace TagTool.Geometry.Jms
 
         public void Export(RenderModel mode)
         {
+            Export(mode, null);
+        }
+
+        internal void Export(RenderModel mode, Sep27RenderModelAnalysis sep27Analysis)
+        {
             //build markers
-            foreach (var markergroup in mode.MarkerGroups)
+            if (mode.MarkerGroups != null)
             {
-                var name = Cache.StringTable.GetString(markergroup.Name);
-                foreach (var marker in markergroup.Markers)
+                foreach (var markergroup in mode.MarkerGroups)
                 {
-                    Jms.Markers.Add(new JmsFormat.JmsMarker
+                    var name = Cache.StringTable.GetString(markergroup.Name);
+                    foreach (var marker in markergroup.Markers)
                     {
-                        Name = name,
-                        NodeIndex = marker.NodeIndex,
-                        Rotation = marker.Rotation,
-                        Translation = new RealVector3d(marker.Translation.X, marker.Translation.Y, marker.Translation.Z) * 100.0f,
-                        Radius = marker.Scale <= 0.0 ? 1.0f : marker.Scale //needs to not be zero
-                    });
+                        Jms.Markers.Add(new JmsFormat.JmsMarker
+                        {
+                            Name = name,
+                            NodeIndex = marker.NodeIndex,
+                            Rotation = marker.Rotation,
+                            Translation = new RealVector3d(marker.Translation.X, marker.Translation.Y, marker.Translation.Z) * 100.0f,
+                            Radius = marker.Scale <= 0.0 ? 1.0f : marker.Scale //needs to not be zero
+                        });
+                    }
                 }
-            };
+            }
 
             List<JmsFormat.JmsMaterial> materialList = new List<JmsFormat.JmsMaterial>();
 
-            //build meshes
-            ModelExtractor extractor = new ModelExtractor(Cache, mode);
-            List<Triangle> Triangles = new List<Triangle>();
-            foreach (var region in mode.Regions)
+            //build meshes — vertices are shared within each mesh to preserve smooth/hard edge encoding
+            if (mode.Regions != null)
             {
-                foreach (var perm in region.Permutations)
+                foreach (var region in mode.Regions)
                 {
-                    if (perm.MeshIndex == -1)
+                    if (region.Permutations == null)
                         continue;
-                    var mesh = mode.Geometry.Meshes[perm.MeshIndex];
-                    var meshReader = new MeshReader(Cache, mode.Geometry.Meshes[perm.MeshIndex]);
 
-                    var vertices = new List<ModelExtractor.GenericVertex>();
-                    //assign rigid node indices from mesh for rigid meshes
-                    if (Cache.Version >= CacheVersion.HaloReach)
+                    string regionName = Cache.StringTable.GetString(region.Name) ?? string.Empty;
+                    foreach (var perm in region.Permutations)
                     {
-                        vertices = ModelExtractor.ReadVerticesReach(meshReader);
-                        if (mesh.ReachType == VertexTypeReach.Rigid || mesh.ReachType == VertexTypeReach.RigidCompressed)
+                        if (perm.MeshIndex == -1)
+                            continue;
+
+                        int effectiveMeshCount = GetEffectiveMeshCount(region, perm, sep27Analysis != null);
+                        if (effectiveMeshCount <= 0)
+                            continue;
+
+                        string permutationName = Cache.StringTable.GetString(perm.Name) ?? string.Empty;
+                        for (int meshOffset = 0; meshOffset < effectiveMeshCount; meshOffset++)
                         {
-                            vertices.ForEach(v => v.Indices = new byte[4] { (byte)mesh.RigidNodeIndex, 0, 0, 0 });
-                            vertices.ForEach(v => v.Weights = new float[4] { 1, 0, 0, 0 });
-                        }                      
-                    }
-                    else
-                    {
-                        vertices = ModelExtractor.ReadVertices(meshReader);
-                        if(mesh.Type == VertexType.Rigid)
-                        {
-                            vertices.ForEach(v => v.Indices = new byte[4] { (byte)mesh.RigidNodeIndex, 0, 0, 0 });
-                            vertices.ForEach(v => v.Weights = new float[4] { 1, 0, 0, 0 });
-                        }
-                    }
-                        
-                    ModelExtractor.DecompressVertices(vertices, new VertexCompressor(mode.Geometry.Compression[0]));
-
-                    for (int partIndex = 0; partIndex < mesh.Parts.Count; partIndex++)
-                    {
-                        int newMaterialIndex = -1;
-                        if(mesh.Parts[partIndex].MaterialIndex != -1)
-                        {
-                            string renderMaterialName = "default";
-                            CachedTag renderMethod = mode.Materials[mesh.Parts[partIndex].MaterialIndex].RenderMethod;
-                            if (renderMethod != null)
-                            {
-                                string renderMethodName = renderMethod.Name;
-                                if (renderMethodName == null)
-                                    renderMethodName = $"{renderMethod.Group.Tag}_" + $"0x{renderMethod.Index:X4}";
-                                List<string> delimiters = new List<string> { "\\shaders\\", "\\materials\\", "\\" };
-                                foreach(var delimiter in delimiters)
-                                {
-                                    string[] nameParts = renderMethodName.Split(new string[] { delimiter }, StringSplitOptions.None);
-                                    if (nameParts.Length > 1)
-                                    {
-                                        renderMaterialName = nameParts.Last();
-                                        break;
-                                    }
-                                    renderMaterialName = renderMethodName;
-                                }             
-                            }
-
-                            JmsFormat.JmsMaterial newMaterial = new JmsFormat.JmsMaterial
-                            {
-                                Name = renderMaterialName,
-                                MaterialName = $"{Cache.StringTable.GetString(perm.Name)} {Cache.StringTable.GetString(region.Name)}"
-                            };
-                            int existingIndex = materialList.FindIndex(m => m.Name == newMaterial.Name && m.MaterialName == newMaterial.MaterialName);
-                            if (existingIndex == -1)
-                            {
-                                newMaterialIndex = materialList.Count;
-                                materialList.Add(newMaterial);
-                            }
-                            else
-                                newMaterialIndex = existingIndex;
-                        }                        
-
-                        var indices = ModelExtractor.ReadIndices(meshReader, mesh.Parts[partIndex]);
-
-                        //recalculate vertex normals
-                        Vector3[] vertexPositions = vertices.Select(v => Vector3fromVector3D(v.Position)).ToArray();
-                        Vector3[] vertexNormals = CalculateVertexNormals(vertexPositions, indices);
-                        for (var v = 0; v < vertexNormals.Length; v++)
-                            vertices[v].Normal = Vector3DfromVector3(vertexNormals[v]);
-
-                        for(var j = 0; j < indices.Length; j += 3)
-                        {
-                            var newTriangle = new Triangle
-                            {
-                                Vertices = new List<ModelExtractor.GenericVertex>
-                                {
-                                    vertices[indices[j]],
-                                    vertices[indices[j + 1]],
-                                    vertices[indices[j + 2]],
-                                },
-                                MaterialIndex = newMaterialIndex
-                            };
-                            Triangles.Add(newTriangle);
+                            int meshIndex = perm.MeshIndex + meshOffset;
+                            EmitMesh(mode, meshIndex, permutationName, regionName, materialList);
                         }
                     }
                 }
             }
 
-            //add triangles and vertices to JMS
-            foreach(var triangle in Triangles)
-            {
-                Jms.Triangles.Add(new JmsFormat.JmsTriangle
-                {
-                    VertexIndices = new List<int>
-                                {
-                                    Jms.Vertices.Count,
-                                    Jms.Vertices.Count + 1,
-                                    Jms.Vertices.Count + 2,
-                                },
-                    MaterialIndex = triangle.MaterialIndex
-                });
+            // Instance placement geometry (modular armor, rigid attachments).
+            // Each InstancePlacements[i] pairs with SubParts[i] of the instance mesh.
+            // Geometry is transformed by each placement's (Forward, Left, Up, Position, Scale)
+            // basis and rigidly bound to placement.NodeIndex — matching blam-tags behaviour.
+            EmitInstancePlacements(mode, materialList);
 
-                foreach(var vertex in triangle.Vertices)
-                {
-                    var newVert = new JmsFormat.JmsVertex
-                    {
-                        Position = new RealPoint3d(vertex.Position.X, vertex.Position.Y, vertex.Position.Z) * 100.0f,
-                        Normal = new RealVector3d(vertex.Normal.X, vertex.Normal.Y, vertex.Normal.Z),
-                        NodeSets = new List<JmsFormat.JmsVertex.NodeSet>(),
-                        UvSets = new List<JmsFormat.JmsVertex.UvSet>()
-                            {
-                                new JmsFormat.JmsVertex.UvSet
-                                {
-                                    TextureCoordinates = new RealPoint2d(vertex.TexCoords.X, 1 - vertex.TexCoords.Y)
-                                }
-                            }
-                    };
-                    if (vertex.Weights != null)
-                    {
-                        for (var i = 0; i < vertex.Weights.Length; i++)
-                        {
-                            if (vertex.Weights[i] != 0.0f)
-                            {
-                                newVert.NodeSets.Add(new JmsFormat.JmsVertex.NodeSet
-                                {
-                                    NodeIndex = vertex.Indices[i],
-                                    NodeWeight = vertex.Weights[i]
-                                });
-                            }
-                        }
-                    }
-                    Jms.Vertices.Add(newVert);
-                }            
-            }
+            EmitSep27OrphanMeshes(mode, sep27Analysis, materialList);
 
             //add materials
             foreach (var material in materialList)
@@ -322,13 +219,232 @@ namespace TagTool.Geometry.Jms
                 });
 
             //add skylights
-            foreach (var skylight in mode.LightgenLights)
-                Jms.Skylights.Add(new JmsFormat.JmsSkylight
+            if (mode.LightgenLights != null)
+            {
+                foreach (var skylight in mode.LightgenLights)
+                    Jms.Skylights.Add(new JmsFormat.JmsSkylight
+                    {
+                        Direction = skylight.Direction,
+                        RadiantIntensity = new RealVector3d(skylight.RadiantIntensity.Red, skylight.RadiantIntensity.Green, skylight.RadiantIntensity.Blue),
+                        SolidAngle = skylight.Magnitude
+                    });
+            }
+        }
+
+        private int GetEffectiveMeshCount(
+            RenderModel.Region region,
+            RenderModel.Region.Permutation permutation,
+            bool strictSep27MeshCounts)
+        {
+            if (permutation.MeshCount == 65535)
+                return 0;
+
+            if (strictSep27MeshCounts)
+                return permutation.MeshCount > 0 ? permutation.MeshCount : 0;
+
+            if (permutation.MeshCount == 0)
+            {
+#if DEBUG
+                Console.WriteLine($"[JmsModeExporter] Warning: permutation '{Cache.StringTable.GetString(permutation.Name)}' in region '{Cache.StringTable.GetString(region.Name)}' has MeshCount==0; defaulting to 1. May indicate uninitialized permutation data.");
+#endif
+                return 1;
+            }
+
+            return permutation.MeshCount;
+        }
+
+        private void EmitMesh(
+            RenderModel mode,
+            int meshIndex,
+            string permutationName,
+            string regionName,
+            List<JmsFormat.JmsMaterial> materialList)
+        {
+            if (mode?.Geometry?.Meshes == null || meshIndex < 0 || meshIndex >= mode.Geometry.Meshes.Count)
+                return;
+
+            var mesh = mode.Geometry.Meshes[meshIndex];
+            var meshReader = new MeshReader(Cache, mesh);
+            var vertices = ReadMeshVertices(mode, meshIndex, mesh, meshReader);
+
+            int jmsVertexBase = Jms.Vertices.Count;
+            foreach (var vertex in vertices)
+                Jms.Vertices.Add(ToJmsVertex(vertex));
+
+            string materialCellLabel = $"{permutationName} {regionName}";
+            for (int partIndex = 0; partIndex < mesh.Parts.Count; partIndex++)
+            {
+                int newMaterialIndex = -1;
+                int partMaterialIndex = mesh.Parts[partIndex].MaterialIndex;
+                if (partMaterialIndex != -1)
                 {
-                    Direction = skylight.Direction,
-                    RadiantIntensity = new RealVector3d(skylight.RadiantIntensity.Red, skylight.RadiantIntensity.Green, skylight.RadiantIntensity.Blue),
-                    SolidAngle = skylight.Magnitude
-                });
+                    string renderMaterialName = ResolveRenderMaterialName(mode, partMaterialIndex);
+                    newMaterialIndex = GetOrAddMaterial(materialList, renderMaterialName, materialCellLabel);
+                }
+
+                var indices = ModelExtractor.ReadIndices(meshReader, mesh.Parts[partIndex]);
+                for (int indexOffset = 0; indexOffset + 2 < indices.Length; indexOffset += 3)
+                {
+                    Jms.Triangles.Add(new JmsFormat.JmsTriangle
+                    {
+                        VertexIndices = new List<int>
+                        {
+                            jmsVertexBase + indices[indexOffset],
+                            jmsVertexBase + indices[indexOffset + 1],
+                            jmsVertexBase + indices[indexOffset + 2],
+                        },
+                        MaterialIndex = newMaterialIndex
+                    });
+                }
+            }
+        }
+
+        private List<ModelExtractor.GenericVertex> ReadMeshVertices(
+            RenderModel mode,
+            int meshIndex,
+            Mesh mesh,
+            MeshReader meshReader)
+        {
+            List<ModelExtractor.GenericVertex> vertices;
+            if (Cache.Version >= CacheVersion.HaloReach)
+            {
+                vertices = ModelExtractor.ReadVerticesReach(meshReader);
+                if (mesh.ReachType == VertexTypeReach.Rigid || mesh.ReachType == VertexTypeReach.RigidCompressed)
+                {
+                    vertices.ForEach(vertex => vertex.Indices = new byte[4] { (byte)mesh.RigidNodeIndex, 0, 0, 0 });
+                    vertices.ForEach(vertex => vertex.Weights = new float[4] { 1, 0, 0, 0 });
+                }
+
+                if (mode.Geometry.PerMeshNodeMaps != null && meshIndex < mode.Geometry.PerMeshNodeMaps.Count)
+                {
+                    var nodeMap = mode.Geometry.PerMeshNodeMaps[meshIndex]?.NodeIndices;
+                    if (nodeMap != null && nodeMap.Count > 0)
+                    {
+                        foreach (var vertex in vertices)
+                        {
+                            if (vertex.Indices == null)
+                                continue;
+
+                            for (int index = 0; index < vertex.Indices.Length; index++)
+                            {
+                                if (vertex.Indices[index] < nodeMap.Count)
+                                    vertex.Indices[index] = nodeMap[vertex.Indices[index]].Node;
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                vertices = ModelExtractor.ReadVertices(meshReader);
+                if (mesh.Type == VertexType.Rigid)
+                {
+                    vertices.ForEach(vertex => vertex.Indices = new byte[4] { (byte)mesh.RigidNodeIndex, 0, 0, 0 });
+                    vertices.ForEach(vertex => vertex.Weights = new float[4] { 1, 0, 0, 0 });
+                }
+            }
+
+            ModelExtractor.DecompressVertices(vertices, new VertexCompressor(mode.Geometry.Compression[0]));
+            return vertices;
+        }
+
+        private static JmsFormat.JmsVertex ToJmsVertex(ModelExtractor.GenericVertex vertex)
+        {
+            var newVertex = new JmsFormat.JmsVertex
+            {
+                Position = new RealPoint3d(vertex.Position.X, vertex.Position.Y, vertex.Position.Z) * 100.0f,
+                Normal = VertexBufferConverter.ConvertVectorSpace(new RealVector3d(vertex.Normal.X, vertex.Normal.Y, vertex.Normal.Z)),
+                NodeSets = new List<JmsFormat.JmsVertex.NodeSet>(),
+                UvSets = new List<JmsFormat.JmsVertex.UvSet>
+                {
+                    new JmsFormat.JmsVertex.UvSet
+                    {
+                        TextureCoordinates = new RealPoint2d(vertex.TexCoords.X, 1 - vertex.TexCoords.Y)
+                    }
+                }
+            };
+
+            if (vertex.Weights != null)
+            {
+                for (int weightIndex = 0; weightIndex < vertex.Weights.Length; weightIndex++)
+                {
+                    if (vertex.Weights[weightIndex] == 0.0f)
+                        continue;
+
+                    newVertex.NodeSets.Add(new JmsFormat.JmsVertex.NodeSet
+                    {
+                        NodeIndex = vertex.Indices[weightIndex],
+                        NodeWeight = vertex.Weights[weightIndex]
+                    });
+                }
+            }
+
+            return newVertex;
+        }
+
+        private int GetOrAddMaterial(List<JmsFormat.JmsMaterial> materialList, string renderMaterialName, string materialCellLabel)
+        {
+            int existingIndex = materialList.FindIndex(material =>
+                material.Name == renderMaterialName &&
+                material.MaterialName == materialCellLabel);
+
+            if (existingIndex >= 0)
+                return existingIndex;
+
+            materialList.Add(new JmsFormat.JmsMaterial
+            {
+                Name = renderMaterialName,
+                MaterialName = materialCellLabel
+            });
+
+            return materialList.Count - 1;
+        }
+
+        internal static string ResolveRenderMaterialName(RenderModel mode, int materialIndex)
+        {
+            if (mode?.Materials == null || materialIndex < 0 || materialIndex >= mode.Materials.Count)
+                return "default";
+
+            CachedTag renderMethod = mode.Materials[materialIndex].RenderMethod;
+            if (renderMethod == null)
+                return "default";
+
+            string renderMethodName = renderMethod.Name ?? $"{renderMethod.Group.Tag}_0x{renderMethod.Index:X4}";
+            foreach (var delimiter in new[] { "\\shaders\\", "\\materials\\", "\\" })
+            {
+                string[] nameParts = renderMethodName.Split(new[] { delimiter }, StringSplitOptions.None);
+                if (nameParts.Length > 1)
+                    return nameParts.Last();
+            }
+
+            return renderMethodName;
+        }
+
+        private void EmitSep27OrphanMeshes(
+            RenderModel mode,
+            Sep27RenderModelAnalysis sep27Analysis,
+            List<JmsFormat.JmsMaterial> materialList)
+        {
+            if (sep27Analysis?.OrphanMeshes == null || sep27Analysis.OrphanMeshes.Count == 0)
+                return;
+
+            var emittedMeshIndices = new List<int>();
+            foreach (var orphanMesh in sep27Analysis.OrphanMeshes)
+            {
+                EmitMesh(
+                    mode,
+                    orphanMesh.MeshIndex,
+                    orphanMesh.SyntheticPermutationName,
+                    Sep27RenderModelAnalyzer.SyntheticOrphanRegionName,
+                    materialList);
+                emittedMeshIndices.Add(orphanMesh.MeshIndex);
+            }
+
+            if (emittedMeshIndices.Count > 0)
+            {
+                Console.WriteLine(
+                    $"[JmsModeExporter] Sep27 orphan mesh recovery emitted meshes: {string.Join(", ", emittedMeshIndices)}");
+            }
         }
 
         private Vector3 PointToVector(RealPoint3d point)
@@ -388,6 +504,147 @@ namespace TagTool.Geometry.Jms
         private Vector3D Vector3DfromVector3(Vector3 input)
         {
             return new Vector3D(input.X, input.Y, input.Z);
+        }
+
+        // -----------------------------------------------------------------------
+        // Instance placement extraction
+        // Mirrors blam-tags append_instance_geometry():
+        //   placement i  →  SubParts[i] of Meshes[InstanceStartingMeshIndex]
+        //   vertex transform: newPos = Forward*(x*s) + Left*(y*s) + Up*(z*s) + Position
+        //   normal transform: rotate by same 3×3 (no scaling)
+        //   bone override: rigidly bound to placement.NodeIndex
+        // -----------------------------------------------------------------------
+
+        private void EmitInstancePlacements(RenderModel mode, List<JmsFormat.JmsMaterial> materialList)
+        {
+            if (mode.InstancePlacements == null || mode.InstancePlacements.Count == 0) return;
+            if (mode.InstanceStartingMeshIndex < 0 || mode.InstanceStartingMeshIndex >= mode.Geometry.Meshes.Count) return;
+
+            var instanceMesh = mode.Geometry.Meshes[mode.InstanceStartingMeshIndex];
+            var instanceMeshReader = new MeshReader(Cache, instanceMesh);
+            var indexBuffer = instanceMeshReader.IndexBuffers[0];
+            if (indexBuffer == null) return;
+
+            List<ModelExtractor.GenericVertex> verts;
+            if (Cache.Version >= CacheVersion.HaloReach)
+            {
+                verts = ModelExtractor.ReadVerticesReach(instanceMeshReader);
+                if (instanceMesh.ReachType == VertexTypeReach.Rigid || instanceMesh.ReachType == VertexTypeReach.RigidCompressed)
+                    verts.ForEach(v => { v.Indices = new byte[] { (byte)instanceMesh.RigidNodeIndex, 0, 0, 0 }; v.Weights = new float[] { 1f, 0, 0, 0 }; });
+            }
+            else
+            {
+                verts = ModelExtractor.ReadVertices(instanceMeshReader);
+                if (instanceMesh.Type == VertexType.Rigid)
+                    verts.ForEach(v => { v.Indices = new byte[] { (byte)instanceMesh.RigidNodeIndex, 0, 0, 0 }; v.Weights = new float[] { 1f, 0, 0, 0 }; });
+            }
+            ModelExtractor.DecompressVertices(verts, new VertexCompressor(mode.Geometry.Compression[0]));
+
+            for (int ii = 0; ii < mode.InstancePlacements.Count; ii++)
+            {
+                var placement = mode.InstancePlacements[ii];
+                if (ii >= instanceMesh.SubParts.Count) continue;
+                var subpart = instanceMesh.SubParts[ii];
+                if ((int)subpart.IndexCount <= 0) continue;
+
+                ushort[] subpartIndices;
+                try
+                {
+                    var idxStream = instanceMeshReader.OpenIndexBufferStream(indexBuffer);
+                    idxStream.Position = subpart.FirstIndex;
+                    subpartIndices = indexBuffer.Format == IndexBufferFormat.TriangleStrip
+                        ? idxStream.ReadTriangleStrip(subpart.IndexCount)
+                        : idxStream.ReadIndices(subpart.IndexCount);
+                }
+                catch { continue; }
+
+                if (subpartIndices.Length < 3) continue;
+
+                string shaderName = "default";
+                if (subpart.PartIndex >= 0 && subpart.PartIndex < instanceMesh.Parts.Count)
+                {
+                    var part = instanceMesh.Parts[subpart.PartIndex];
+                    shaderName = ResolveRenderMaterialName(mode, part.MaterialIndex);
+                }
+
+                string placementName = Cache.StringTable.GetString(placement.Name) ?? $"instance_{ii}";
+                int matIdx = materialList.Count;
+                materialList.Add(new JmsFormat.JmsMaterial
+                {
+                    Name = shaderName,
+                    MaterialName = placementName,
+                });
+
+                float s  = placement.Scale <= 0f ? 1f : placement.Scale;
+                float fI = placement.Forward.X, fJ = placement.Forward.Y, fK = placement.Forward.Z;
+                float lI = placement.Left.X,    lJ = placement.Left.Y,    lK = placement.Left.Z;
+                float uI = placement.Up.X,      uJ = placement.Up.Y,      uK = placement.Up.Z;
+                float pX = placement.Position.X, pY = placement.Position.Y, pZ = placement.Position.Z;
+
+                int vertBase = Jms.Vertices.Count;
+                var remap = new Dictionary<ushort, int>();
+
+                for (int t = 0; t + 2 < subpartIndices.Length; t += 3)
+                {
+                    ushort i0 = subpartIndices[t], i1 = subpartIndices[t + 1], i2 = subpartIndices[t + 2];
+                    if (i0 >= verts.Count || i1 >= verts.Count || i2 >= verts.Count) continue;
+
+                    int r0 = GetOrAddInstanceVertex(remap, i0, verts, fI, fJ, fK, lI, lJ, lK, uI, uJ, uK, pX, pY, pZ, s, placement.NodeIndex);
+                    int r1 = GetOrAddInstanceVertex(remap, i1, verts, fI, fJ, fK, lI, lJ, lK, uI, uJ, uK, pX, pY, pZ, s, placement.NodeIndex);
+                    int r2 = GetOrAddInstanceVertex(remap, i2, verts, fI, fJ, fK, lI, lJ, lK, uI, uJ, uK, pX, pY, pZ, s, placement.NodeIndex);
+
+                    Jms.Triangles.Add(new JmsFormat.JmsTriangle
+                    {
+                        VertexIndices = new List<int> { vertBase + r0, vertBase + r1, vertBase + r2 },
+                        MaterialIndex = matIdx,
+                    });
+                }
+            }
+        }
+
+        private int GetOrAddInstanceVertex(
+            Dictionary<ushort, int> remap, ushort vi,
+            List<ModelExtractor.GenericVertex> verts,
+            float fI, float fJ, float fK,
+            float lI, float lJ, float lK,
+            float uI, float uJ, float uK,
+            float pX, float pY, float pZ,
+            float scale, int boneIndex)
+        {
+            if (remap.TryGetValue(vi, out int local)) return local;
+            local = remap.Count;
+            remap[vi] = local;
+
+            var gv = verts[vi];
+            float sx = gv.Position.X * scale, sy = gv.Position.Y * scale, sz = gv.Position.Z * scale;
+
+            var cn = VertexBufferConverter.ConvertVectorSpace(new RealVector3d(gv.Normal.X, gv.Normal.Y, gv.Normal.Z));
+
+            var jv = new JmsFormat.JmsVertex
+            {
+                Position = new RealPoint3d(
+                    fI * sx + lI * sy + uI * sz + pX,
+                    fJ * sx + lJ * sy + uJ * sz + pY,
+                    fK * sx + lK * sy + uK * sz + pZ) * 100.0f,
+                Normal = new RealVector3d(
+                    fI * cn.I + lI * cn.J + uI * cn.K,
+                    fJ * cn.I + lJ * cn.J + uJ * cn.K,
+                    fK * cn.I + lK * cn.J + uK * cn.K),
+                NodeSets = new List<JmsFormat.JmsVertex.NodeSet>(),
+                UvSets = new List<JmsFormat.JmsVertex.UvSet>
+                {
+                    new JmsFormat.JmsVertex.UvSet
+                    {
+                        TextureCoordinates = new RealPoint2d(gv.TexCoords.X, 1f - gv.TexCoords.Y)
+                    }
+                },
+            };
+
+            if (boneIndex >= 0)
+                jv.NodeSets.Add(new JmsFormat.JmsVertex.NodeSet { NodeIndex = (byte)boneIndex, NodeWeight = 1f });
+
+            Jms.Vertices.Add(jv);
+            return local;
         }
     }
 }

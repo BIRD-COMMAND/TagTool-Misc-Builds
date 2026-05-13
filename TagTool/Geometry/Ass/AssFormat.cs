@@ -24,7 +24,7 @@ namespace TagTool.Geometry.Ass
             using (var stream = BlamAssetWriter.Create(file))
             {
                 stream.WriteLine(";### HEADER ###");
-                stream.WriteLine(7); //version
+                stream.WriteLine(5); //version
                 stream.WriteLine("\"\""); //program (e.g. MAX)
                 stream.WriteLine("\"\""); //program version (e.g. 8.0)
                 stream.WriteLine("\"TAGTOOL\""); //author
@@ -88,10 +88,21 @@ namespace TagTool.Geometry.Ass
             public List<AssVertex> Vertices = new List<AssVertex>();
             public List<AssTriangle> Triangles = new List<AssTriangle>();
             public AssLightInfo LightInfo = new AssLightInfo();
+            // Sphere primitive fields (used when ObjectType == Sphere).
+            public int   SphereMaterial = -1;
+            public float SphereRadius   = 10.0f;
             public void Write(BlamAssetWriter stream)
             {
                 switch (ObjectType)
                 {
+                    case AssObjectType.Sphere:
+                        stream.WriteLine($"\"SPHERE\"");
+                        stream.WriteLine($"\"{XrefPath}\"");
+                        stream.WriteLine($"\"{XrefName}\"");
+                        stream.WriteLine(SphereMaterial);
+                        stream.WriteFloat(SphereRadius);
+                        stream.WriteLine();
+                        break;
                     case AssObjectType.Mesh:
                         stream.WriteLine($"\"MESH\"");
                         stream.WriteLine($"\"{XrefPath}\"");
@@ -167,7 +178,6 @@ namespace TagTool.Geometry.Ass
                 {
                     stream.WritePoint3d(Position);
                     stream.WriteVector3d(Normal);
-                    stream.WriteRealRGB(VertexColor);
                     stream.WriteLine(NodeSets.Count);
                     if (NodeSets.Count > 0)
                     {

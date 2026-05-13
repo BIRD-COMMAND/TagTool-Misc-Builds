@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TagTool.Cache;
 using TagTool.Common;
+using TagTool.Geometry.BspCollisionGeometry;
 using TagTool.Tags.Definitions;
 
 namespace TagTool.Geometry.Export
@@ -74,18 +75,24 @@ namespace TagTool.Geometry.Export
     public class ExportBspCollisionSurface
     {
         // Vertex indices into ExportScenarioBsp.CollisionVertices, in edge-ring traversal order.
-        // BSP edge-ring walking is deferred to Phase 3.
-        // TODO Phase3: port donor geometry.rs walk_surface_ring() to populate this from the
-        //              collision BSP edge/surface tables in StructureBspTagResources.
         public List<int> VertexIndices = new List<int>();
+        public int SourceBspIndex;
+        public int SourceSurfaceIndex;
+        public int FirstEdge;
+        public int PlaneIndex;
+        public short MaterialIndex;
+        public SurfaceFlags Flags;
     }
 
     public class ExportBspEnvironmentObject
     {
         // Resolved tag path of the environment object (xref).
-        public string       TagPath;
-        public string       ObjectName;
+        public string        TagPath;
+        public string        ObjectName;
+        // Rows 1-3 = rotation matrix (built from placement quaternion), row 4 = position.
         public RealMatrix4x3 Transform;
+        // Uniform scale from the environment object placement.
+        public float         Scale = 1.0f;
     }
 
     /// <summary>
